@@ -1,0 +1,10 @@
+*.py[cod]
+__pycache__
+
+# C extensions
+*.so
+
+# Vim and Emacs
+*.swp
+*.swo
+.\#*
