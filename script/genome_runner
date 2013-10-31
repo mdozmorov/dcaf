@@ -1,0 +1,98 @@
+#!/usr/bin/env python
+
+import argparse
+import math
+import operator
+import sys
+
+import scipy.stats
+import numpy
+
+import dcaf.gi
+
+# TODO:
+# - What to do about contigs that are in query but not reference or
+#   vice-versa? (currently ignored)
+# - What to do about query points that occur before or after all
+#   reference points? (currently ignored)
+
+def ks_relative_distance_test(reference, query):
+   reference = reference.midpoints()
+   query = query.midpoints()
+   distances = []
+   for contig in set(reference.keys()) & set(query.keys()):
+      q = query[contig]
+      r = reference[contig]
+      for i,ix in enumerate(numpy.searchsorted(r, q)):
+         if ix in (0, len(r)):
+            # FIXME?
+            continue
+         before,after = r[ix - 1], r[ix]
+         d = min(abs(q[i] - before), abs(q[i] - after)) / abs(before - after)
+         distances.append(d)
+   distances = numpy.array(distances) * 2
+   D, p = scipy.stats.kstest(distances, "uniform")
+   sign = -1 if distances.mean() > 0.5 else 1
+   return sign * -math.log10(p)
+
+def absolute_distance_test(reference, query):
+   reference = reference.midpoints()
+   query = query.midpoints()
+   observed = []
+   null = []
+   for contig in set(reference.keys()) & set(query.keys()):
+      q, r = query[contig], reference[contig]
+      observed.extend(numpy.abs(r-e).min() for e in q)
+   observed = numpy.array(observed)
+   print(observed.mean())
+         
+def main(args):
+   parser = argparse.ArgumentParser(description="GenomeRunner command-line version.")
+   parser.add_argument("-b", "--background")
+   opts = parser.parse_args(args)
+
+if __name__ == "__main__":
+   #background = BedTool(sys.argv[1]).tabix()
+   #query = BedTool(sys.argv[2]).intersect(background)
+   #gf = BedTool(sys.argv[3]).intersect(background)
+   #print(len(query))
+   #print(len(gf))
+
+   #main(sys.argv[1:])
+   #background = dcaf.gi.open(sys.argv[1], indexed=True)
+
+   ix = dcaf.gi.open(sys.argv[1], indexed=True)
+   q = dcaf.gi.open(sys.argv[2])
+   #print(ks_relative_distance_test(ix, q))
+   print(absolute_distance_test(ix, q))
+
+
+   #q.sort().save(sys.stdout)
+   #print(len(q))
+   #q.merge().save(sys.stdout)
+   #for item in q:
+   #   print(item)
+   """
+   print(len(q))
+   n = 0
+   for region in q:
+      rs = background.fetch(region)
+      try:
+         next(rs)
+         n += 1
+      except StopIteration:
+         continue
+   print(n)
+   
+   print(next(iter(q)))
+   """
+
+   #q = dcaf.gi.open(sys.argv[2]).intersect(background)
+   #gf = dcaf.gi.open(sys.argv[3]).intersect(background)
+
+   #for i in background:
+   #   print(i)
+   #q = dcaf.gi.Interval("chr1", 23000, 23000)
+   #for r in ix.nearest(q):
+   #   print(r)
+   pass
