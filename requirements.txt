@@ -3,6 +3,6 @@ pandas
 scipy
 pysam
 cython
-xattr
-mysql-connector-python
 termcolor
+mysql-connector-python
+psycopg2
