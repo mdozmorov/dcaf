@@ -8,6 +8,10 @@ __author_email__ = "mail@corygil.es"
 try:
     __version__ = subprocess.check_output("git --git-dir %s describe --tags" % \
                                           os.path.join(os.path.dirname(__file__), "../.git"),
+                                          stderr=os.devnull,
                                           shell=True).decode("ascii").strip()
 except:
-    __version__ = "UNKNOWN"
+    try:
+        from dcaf.version import __version__
+    except ImportError:
+        __version__ = "UNKNOWN"

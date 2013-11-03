@@ -1,6 +1,8 @@
 # Python stuff
 *.py[cod]
 __pycache__
+/dist
+/*.egg-info
 
 # Cython & C extensions
 dcaf/*.cpp

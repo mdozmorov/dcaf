@@ -1,8 +1,18 @@
+# Installation and compilation
+setuptools
+cython
+
+# Generic scientific packages
 numpy
 pandas
 scipy
-pysam
-cython
-termcolor
+
+# Database access
 mysql-connector-python
 psycopg2
+
+# Miscellaneous
+termcolor
+
+# Bioinformatics packages
+pysam
