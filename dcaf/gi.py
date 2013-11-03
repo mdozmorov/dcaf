@@ -12,7 +12,7 @@ import warnings
 
 from itertools import groupby, chain, islice
 from operator import attrgetter
-from functools import reduce
+from functools import reduce, lru_cache
 from collections import Iterator, Sized
 
 import pysam
@@ -26,10 +26,6 @@ def read_lines(path):
         return (line.decode("ascii") for line in gzip.open(path))
     else:
         return io.open(path)
-
-def intersect(iset1, iset2):
-    for interval in iset2:
-        pass
 
 class Interval(object):
     __slots__ = ["contig", "start", "end", "name", "score", "strand"]
@@ -372,7 +368,9 @@ class Tabix(IntervalFile, Index):
     def __init__(self, path, mode="bed"):
         if not os.path.exists(path + ".tbi"):
             if not path.endswith(".gz"):
-                warnings.warn("""The file you are attempting to use as a TabixGenomicIntervalIndex (%s) 
+                warnings.warn("""
+                The file you are attempting to use as a 
+                TabixGenomicIntervalIndex (%s) 
                 is not BGZF compressed. It will be BGZF compressed and the 
                 original file will be DELETED.""" % path)
             path = pysam.tabix_index(path, preset=mode)
@@ -391,3 +389,13 @@ def open(path, indexed=False):
         return Tabix(path)
     else:
         return IntervalFile(path)
+
+@lru_cache()
+def genome(name):
+    import mysql.connector
+    db = mysql.connector.connect(user="genome", password="",
+                                 host="genome-mysql.cse.ucsc.edu",
+                                 database=name)
+    c = db.cursor()
+    c.execute("SELECT chrom, size FROM chromInfo")
+    return dict(c)

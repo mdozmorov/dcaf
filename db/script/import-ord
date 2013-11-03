@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+
+MDB="$1"
+
+q () {
+  psql --no-align -F '	' -t -d gfa -h wrendb -c "$@"
+}
+
+get_rows() {
+    mdb-export -H -d '%%%%%' -R '&&&&&' $MDB tblObjectSynonyms \
+               | tr '\t\r\n' ' ' \
+               | tr -d '"' \
+               | sed 's/%%%%%/\t/g' \
+               | sed 's/&&&&&/\n/g'
+}
+
+q "DELETE FROM ontology WHERE namespace='ORD'"
+q "INSERT INTO ontology (namespace, description) VALUES ('ORD', 'Custom Wren Lab database of terms.')"
+
+ontology=$( q "SELECT id FROM ontology WHERE namespace='ORD' LIMIT 1")
+get_rows | awk -void="$ontology" -F '	' \
+    '{printf "%d\tORD:%06d\t%s\n",oid,$1,$2}' \
+    | sed 's/^[ ]*//g' | sort -uk2,2 \
+    | q "COPY term (ontology_id, accession, name) FROM STDIN DELIMITER '	'"
+
+get_rows | awk -F '	' '{printf "ORD:%06d\t%s\n",$1,$4}' \
+    | sort -k1,1b | join -o 2.1 1.2 -t '	' -1 1 -2 2 - \
+    <( q "SELECT term.id, term.accession FROM term \
+          INNER JOIN ontology \
+          ON term.ontology_id=ontology.id \
+          WHERE ontology.namespace='ORD'" | sort -k2,2b ) \
+    | q "COPY synonym (term_id, synonym) FROM STDIN DELIMITER '	'"

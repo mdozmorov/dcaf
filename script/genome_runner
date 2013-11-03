@@ -1,14 +1,44 @@
 #!/usr/bin/env python
+"""
+A command-line utility for statistically comparing sets of genomic intervals for 
+propensity to overlap for relative or absolute proximity to one another.
+
+For our previous publication on enrichment analysis:
+- http://www.ncbi.nlm.nih.gov/pubmed/22155868
+
+We also implemented several proximity analyses from the R GenometriCorr package:
+- http://www.ploscompbiol.org/article/info:doi/10.1371/journal.pcbi.1002529 (paper)
+- http://genometricorr.sourceforge.net/ (software package)
+"""
 
 import argparse
 import math
 import operator
+import os
 import sys
 
 import scipy.stats
 import numpy
+import pandas
+import termcolor
 
 import dcaf.gi
+
+def file_attribute(fn):
+   """
+   Decorator for a function that takes a file path as the first argument.
+   
+   Will memoize the results of the function and only recompute them if 
+   the size or modification time of the file has changed.
+   """
+   import shelve
+   print(fn.__name__)
+   print(fn.__module__)
+
+@file_attribute
+def foo(path):
+   print(path)
+   return hash(path)
 
 # TODO:
 # - What to do about contigs that are in query but not reference or
@@ -16,7 +46,10 @@ import dcaf.gi
 # - What to do about query points that occur before or after all
 #   reference points? (currently ignored)
 
-def ks_relative_distance_test(reference, query):
+def overlap_enrichment_test(reference, query):
+   raise NotImplementedError
+
+def kolmogorov_smirnov_relative_distance_test(reference, query):
    reference = reference.midpoints()
    query = query.midpoints()
    distances = []
@@ -35,6 +68,9 @@ def ks_relative_distance_test(reference, query):
    sign = -1 if distances.mean() > 0.5 else 1
    return sign * -math.log10(p)
 
+def ecdf_relative_distance_test(reference, query):
+   raise NotImplementedError
+
 def absolute_distance_test(reference, query):
    reference = reference.midpoints()
    query = query.midpoints()
@@ -46,53 +82,64 @@ def absolute_distance_test(reference, query):
    observed = numpy.array(observed)
    print(observed.mean())
          
+def run(query_path, reference_paths, background=None):
+   # FIXME: add multiprocessing
+   columns = ["File", "KS Relative Distance [-log10(p)]"]
+   is_p_value = [True]
+   rows = []
+   for reference_path in reference_paths:
+      reference = dcaf.gi.open(reference_path)
+      query = dcaf.gi.open(query_path)
+      rows.append((reference_path,
+                   kolmogorov_smirnov_relative_distance_test(reference, query)))
+   df = pandas.DataFrame.from_records(rows, columns=columns, index="File")
+   df.columns.is_p_value = is_p_value
+   # FIXME: multiple hypothesis correction
+   return df
+
+def color_p_value(p_value, cutoff=0.05, log10=True, signed=True):
+   """
+   Given a p-value, return a ANSI terminal colored string if the 
+   p-value is significant, or an ordinary string if not.
+   
+   By default, the input is expected to be a signed -log10 p-value, meaning
+   that the number will be negative if there is underrepresentation and positive
+   if overrepresentation.
+   
+   Colors:
+   - green if significantly overrepresented
+   - red if significantly underrepresented
+   - yellow if unsigned and significant
+   """
+   sign = int(math.copysign(1.0, p_value))
+   assert(sign in (-1,1))
+   significant = abs(p_value) > pow(10,cutoff) if log10 else p_value < cutoff 
+   significant = True
+   if significant:
+      if signed:
+         color = "green" if sign == 1 else "red"
+      else:
+         color = "yellow"
+      return termcolor.colored(p_value, color)
+   else:
+      return str(p_value)
+
 def main(args):
    parser = argparse.ArgumentParser(description="GenomeRunner command-line version.")
    parser.add_argument("-b", "--background")
+   parser.add_argument("-g", "--genome")
+   parser.add_argument("query", nargs=1)
+   parser.add_argument("references", nargs="+")
    opts = parser.parse_args(args)
+   
+   df = run(opts.query[0], opts.references)
+   if os.fstat(0) == os.fstat(1):
+      # Output is not redirected (is interactive); add coloring.
+      for i, (column,is_p_value) in enumerate(zip(df.columns, df.columns.is_p_value)):
+         if is_p_value:
+            df[column] = list(map(color_p_value, df[column]))
+   df.to_csv(sys.stdout, sep="\t")
 
 if __name__ == "__main__":
-   #background = BedTool(sys.argv[1]).tabix()
-   #query = BedTool(sys.argv[2]).intersect(background)
-   #gf = BedTool(sys.argv[3]).intersect(background)
-   #print(len(query))
-   #print(len(gf))
-
    #main(sys.argv[1:])
-   #background = dcaf.gi.open(sys.argv[1], indexed=True)
-
-   ix = dcaf.gi.open(sys.argv[1], indexed=True)
-   q = dcaf.gi.open(sys.argv[2])
-   #print(ks_relative_distance_test(ix, q))
-   print(absolute_distance_test(ix, q))
-
-
-   #q.sort().save(sys.stdout)
-   #print(len(q))
-   #q.merge().save(sys.stdout)
-   #for item in q:
-   #   print(item)
-   """
-   print(len(q))
-   n = 0
-   for region in q:
-      rs = background.fetch(region)
-      try:
-         next(rs)
-         n += 1
-      except StopIteration:
-         continue
-   print(n)
-   
-   print(next(iter(q)))
-   """
-
-   #q = dcaf.gi.open(sys.argv[2]).intersect(background)
-   #gf = dcaf.gi.open(sys.argv[3]).intersect(background)
-
-   #for i in background:
-   #   print(i)
-   #q = dcaf.gi.Interval("chr1", 23000, 23000)
-   #for r in ix.nearest(q):
-   #   print(r)
    pass
