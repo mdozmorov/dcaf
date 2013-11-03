@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+
+# Count the number of bases covered by at least one interval in a genomic
+# region (e.g., BED) file.
+
+# Reads from stdin and outputs to stdout.
+
+bedtools sort | bedtools merge -i - | awk '{n += $3 - $2} END {print n}'
