@@ -1,4 +1,5 @@
 import glob
+import os
 import subprocess
 
 from distutils.core import setup
@@ -8,7 +9,7 @@ from Cython.Build import cythonize
 
 import dcaf
 
-scripts = ["script/genome_runner"]
+scripts = [os.path.abspath("script/" + p) for p in os.listdir("script/") if os.path.isfile(p)]
 
 extensions = [
         Extension(
@@ -24,7 +25,7 @@ setup(
         name="dcaf",
         version=dcaf.__version__,
         author=dcaf.__author__,
-        author_email="mail@corygil.es; dozmorovm@omrf.org",
+        author_email=dcaf.__author_email__,
         description="Utilities for genome analysis, expression analysis, and text mining used by the Wren Lab at the Oklahoma Medical Research Foundation.",
         classifiers = [
             "Development Status :: 3 - Alpha",

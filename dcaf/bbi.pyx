@@ -75,7 +75,7 @@ cdef class BBI:
 
 cdef class BigWig(BBI):
     """
-
+    Query interface for BigWig files.
     """
     cdef BigWigFile *h
 
@@ -97,6 +97,9 @@ cdef class BigWig(BBI):
         return s.mean0
 
 class BigWigSet(object):
+    """
+    A higher-level interface for querying multiple BigWig files simultaneously.
+    """
     def __init__(self, dir):
         self._handles = []
         self._mean_coverage = []
