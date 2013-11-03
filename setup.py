@@ -38,7 +38,7 @@ setup(
             "Programming Language :: Unix Shell",
             "Programming Language :: SQL",
             "Topic :: Scientific/Engineering :: Bio-Informatics"
-        ]
+        ],
         license="AGPLv3+",
 
         packages=["dcaf"],
