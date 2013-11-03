@@ -17,11 +17,11 @@ import numpy
 # make BigWigSet read metadata
 # Make both BigBED and BigWig iterable
 
-cdef extern from "mm.hpp":
+cdef extern from "dcaf/mmap.hpp" namespace "dcaf":
     cdef cppclass MMFile:
         pass
 
-cdef extern from "bbi.hpp":
+cdef extern from "dcaf/bbi/bbi.hpp" namespace "dcaf::bbi":
     cdef struct BED:
         char* chrom
         int start, end

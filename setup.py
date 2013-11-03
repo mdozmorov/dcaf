@@ -14,8 +14,8 @@ def version():
 extensions = [
         Extension(
             "dcaf.bbi",
-            include_dirs=["src"],
-            sources=["dcaf/bbi.pyx", "src/bbi.cpp", "src/mm.cpp"],
+            include_dirs=["include"],
+            sources=["dcaf/bbi.pyx", "src/bbi/bbi.cpp"],
             extra_compile_args=["-std=c++0x"],
             libraries=["z"],
             language="c++")
