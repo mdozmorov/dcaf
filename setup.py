@@ -6,10 +6,9 @@ from distutils.extension import Extension
 from Cython.Distutils import build_ext
 from Cython.Build import cythonize
 
-scripts = ["script/genome_runner"]
+import dcaf
 
-def version():
-    return subprocess.check_output(["git", "describe", "--tags"]).decode("ascii").strip()
+scripts = ["script/genome_runner"]
 
 extensions = [
         Extension(
@@ -23,8 +22,8 @@ extensions = [
 
 setup(
         name="dcaf",
-        version=version(),
-        author="Cory Giles, Mikhail Dozmorov",
+        version=dcaf.__version__,
+        author=dcaf.__author__,
         author_email="mail@corygil.es; dozmorovm@omrf.org",
         description="Utilities for genome analysis, expression analysis, and text mining used by the Wren Lab at the Oklahoma Medical Research Foundation.",
         classifiers = [

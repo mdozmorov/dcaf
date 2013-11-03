@@ -1,5 +1,8 @@
 """
-A read-only API for BigWig and BigBED files.
+.. module:: dcaf.bbi
+    :synopsis: A read-only API for BigWig and BigBED files.
+
+.. moduleauthor:: Cory Giles <mail@corygil.es>
 """
 import os
 
@@ -71,6 +74,9 @@ cdef class BBI:
         return self.h.totalSummary.sumSquares
 
 cdef class BigWig(BBI):
+    """
+
+    """
     cdef BigWigFile *h
 
     def __cinit__(self, str path):
