@@ -7,6 +7,8 @@ Contents:
    :maxdepth: 2
    
    bbi
+   db
+   genome
              
 Indices and tables
 ==================

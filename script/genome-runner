@@ -22,7 +22,7 @@ import numpy
 import pandas
 import termcolor
 
-import dcaf.gi
+import dcaf.genome
 
 def file_attribute(fn):
    """
@@ -88,8 +88,8 @@ def run(query_path, reference_paths, background=None):
    is_p_value = [True]
    rows = []
    for reference_path in reference_paths:
-      reference = dcaf.gi.open(reference_path)
-      query = dcaf.gi.open(query_path)
+      reference = dcaf.genome.open(reference_path)
+      query = dcaf.genome.open(query_path)
       rows.append((reference_path,
                    kolmogorov_smirnov_relative_distance_test(reference, query)))
    df = pandas.DataFrame.from_records(rows, columns=columns, index="File")

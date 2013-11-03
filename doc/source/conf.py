@@ -9,6 +9,11 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")
 
 import dcaf
 
+mode = "dev"
+assert(mode in ("dev", "release"))
+
+todo_include_todos = mode == "dev"
+
 # -- General configuration -----------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
