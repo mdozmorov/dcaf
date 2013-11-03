@@ -1,6 +1,12 @@
 """
-A read-only Python API for BigWig and BigBED files.
+A read-only API for BigWig and BigBED files.
 """
+import os
+
+from collections import namedtuple
+
+import numpy
+
 # TODO:
 # add a "normalize" kwarg to "mean"
 # handle invalid BBI files
@@ -24,15 +30,47 @@ cdef extern from "bbi.hpp":
         char strand
         char* rest
 
+    cdef struct TotalSummary:
+        long basesCovered
+        double minVal, maxVal, sumData, sumSquares
+    
     cdef struct Summary:
         int length, covered
         float sum, mean0, mean
 
-    cdef cppclass BigWigFile:
+    cdef cppclass BBIFile:
+        TotalSummary* totalSummary
+
+    cdef cppclass BigWigFile(BBIFile):
         BigWigFile(char* path)
         Summary summary(BED)
     
-cdef class BigWig:
+BBISummary = namedtuple("BBISummary",
+                        ["basesCovered","minVal",
+                         "maxVal","sumData","sumSquares"])
+
+cdef class BBI:
+    @property
+    def basesCovered(self):
+        return self.h.totalSummary.basesCovered
+
+    @property
+    def minVal(self):
+        return self.h.totalSummary.minVal
+
+    @property
+    def maxVal(self):
+        return self.h.totalSummary.maxVal
+
+    @property
+    def sumData(self):
+        return self.h.totalSummary.sumData
+
+    @property
+    def sumSquares(self):
+        return self.h.totalSummary.sumSquares
+
+cdef class BigWig(BBI):
     cdef BigWigFile *h
 
     def __cinit__(self, str path):
@@ -52,20 +90,26 @@ cdef class BigWig:
         cdef Summary s = self.h.summary(bed)
         return s.mean0
 
-import os
-import numpy
-
 class BigWigSet(object):
     def __init__(self, dir):
         self._handles = []
+        self._mean_coverage = []
         dir = os.path.abspath(dir)
         for p in os.listdir(dir):
             if p.endswith(".bw"):
-                self._handles.append(BigWig(os.path.join(dir,p)))
+                h = BigWig(os.path.join(dir,p))
+                self._handles.append(h)
+                s = h.summary
+                self._mean_coverage.append(s.sumData / s.basesCovered)
+        self._mean_coverage = numpy.array(self._mean_coverage)
     
-    def mean(self, str chrom, int start, int end):
-        return numpy.array([h.mean(chrom,start,end) for h in self._handles])
+    def mean(self, str chrom, int start, int end, normalize=True):
+        v = numpy.array([h.mean(chrom,start,end) for h in self._handles])
+        if normalize:
+            v /= self._mean_coverage
+        return v
        
 def test():
-    bws = BigWigSet("data/")
-    print bws.mean("chr1", 0, 100000)
+    bws = BigWigSet("/data/OMRF-Sjogren")
+    print(bws._handles[0].sumData)
+    #print bws.mean("chrX", 0, 100000)
