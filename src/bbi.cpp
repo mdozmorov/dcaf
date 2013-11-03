@@ -126,6 +126,10 @@ BBIFile::BBIFile(const char* path) {
     assert(bHeader->magic==BTreeMagicNumber);
     readChromosomes(bHeader->keySize, 
             (char*) btreeOffset + sizeof(BHeader));
+
+    // Load the summary
+    totalSummary = (TotalSummary*) 
+      (*handle)[header->totalSummaryOffset];
 }
 
 BBIFile::~BBIFile() {

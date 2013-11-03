@@ -94,6 +94,10 @@ struct BEDGraphDatum {
     float value;
 } __attribute__((packed));
 
+struct TotalSummary {
+  uint64_t basesCovered;
+  double minVal, maxVal, sumData, sumSquares;
+} __attribute__((packed));
 
 /* 
  * BBI file API classes 
@@ -122,6 +126,7 @@ protected:
 
     virtual std::vector<BED> searchSection(const Region&, int) = 0;
 public:
+    TotalSummary* totalSummary;
     std::vector<BED> search(const BED& query);
 };
 
