@@ -12,3 +12,7 @@ containing:
     * Add expression profiles from SRA
     * Various genomic feature tables from UCSC
     * Genomic coordinates for genes
+      
+.. automodule:: dcaf.db
+    :members:
+    :synopsis: Manage a SQL database of genomic data

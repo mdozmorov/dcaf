@@ -16,6 +16,16 @@ assert(mode in ("dev", "release"))
 todo_include_todos = mode == "dev"
 autodoc_docstring_signature = True
 
+# Force sphinx to document class __init__ methods
+
+def skip(app, what, name, obj, skip, options):
+    if name == "__init__":
+        return False
+    return skip
+
+def setup(app):
+    app.connect("autodoc-skip-member", skip)
+
 # -- General configuration -----------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.

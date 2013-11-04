@@ -28,14 +28,14 @@ $$ LANGUAGE SQL;
 --                gene WHERE taxon_id=$1) AS q) AS foo
 --$$ LANGUAGE SQL;
 
-DROP VIEW foo;
-CREATE OR REPLACE VIEW foo AS
-    SELECT id1, id2
-        FROM
-        (SELECT row_number() OVER (ORDER BY id) AS ix1, 
-            id AS id1
-            FROM gene WHERE taxon_id=9606) A
-        CROSS JOIN
-        (SELECT row_number() OVER (ORDER BY id) AS ix2, 
-            id AS id2 FROM gene WHERE taxon_id=9606) B
-    LIMIT 10
+-- DROP VIEW foo;
+-- CREATE OR REPLACE VIEW foo AS
+--     SELECT id1, id2
+--         FROM
+--         (SELECT row_number() OVER (ORDER BY id) AS ix1, 
+--             id AS id1
+--             FROM gene WHERE taxon_id=9606) A
+--         CROSS JOIN
+--         (SELECT row_number() OVER (ORDER BY id) AS ix2, 
+--             id AS id2 FROM gene WHERE taxon_id=9606) B
+--     LIMIT 10
