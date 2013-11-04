@@ -1,4 +1,6 @@
 """ 
+.. currentmodule:: dcaf.genome
+
 Manipulate genomic interval sets generically. Similar in concept
 to pybedtools, except it operates in memory whenever possible rather
 than using tempfiles and subprocesses, and it works in Python 3. 
@@ -517,17 +519,30 @@ def color_p_value(p_value, cutoff=0.05, log10=True, signed=True):
     else:
         return str(p_value)
 
-def main(args=sys.argv[1:]):
+def entry_point(fn):
+    def wrapped(args=None):
+        if args is None:
+            args = sys.argv[1:]
+        wrapped(args)
+    return wrapped
+
+#@entry_point
+
+def main(args):
     """
+    main(argv)
+
     A command-line utility for statistically comparing sets of genomic intervals for 
     propensity to overlap for relative or absolute proximity to one another.
 
     For our previous publication on enrichment analysis:
-    - http://www.ncbi.nlm.nih.gov/pubmed/22155868
+
+    * http://www.ncbi.nlm.nih.gov/pubmed/22155868
 
     We also implemented several proximity analyses from the R GenometriCorr package:
-    - http://www.ploscompbiol.org/article/info:doi/10.1371/journal.pcbi.1002529 (paper)
-    - http://genometricorr.sourceforge.net/ (software package)
+
+    * http://www.ploscompbiol.org/article/info:doi/10.1371/journal.pcbi.1002529 (paper)
+    * http://genometricorr.sourceforge.net/ (software package)
     """
     
     parser = argparse.ArgumentParser(description="GenomeRunner command-line version.")

@@ -1,8 +1,5 @@
 """
-.. module:: dcaf.bbi
-    :synopsis: A read-only API for BigWig and BigBED files.
-
-.. moduleauthor:: Cory Giles <mail@corygil.es>
+:moduleauthor: Cory Giles <mail@corygil.es>
 """
 import os
 
