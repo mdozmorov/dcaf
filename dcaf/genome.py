@@ -1,5 +1,7 @@
 """ 
-.. currentmodule:: dcaf.genome
+Generic manipulation of genomic intervals.
+
+.. moduleauthor:: Cory Giles <mail@corygil.es>
 
 Manipulate genomic interval sets generically. Similar in concept
 to pybedtools, except it operates in memory whenever possible rather
@@ -19,6 +21,8 @@ from collections import Iterator, Sized
 
 import pysam
 import numpy
+
+import dcaf.util
 
 def ensure_iter(seq):
     return seq if isinstance(seq, Iterator) else iter(seq)
@@ -519,19 +523,9 @@ def color_p_value(p_value, cutoff=0.05, log10=True, signed=True):
     else:
         return str(p_value)
 
-def entry_point(fn):
-    def wrapped(args=None):
-        if args is None:
-            args = sys.argv[1:]
-        wrapped(args)
-    return wrapped
-
-#@entry_point
-
-def main(args):
+@dcaf.util.entry_point
+def genome_runner(args):
     """
-    main(argv)
-
     A command-line utility for statistically comparing sets of genomic intervals for 
     propensity to overlap for relative or absolute proximity to one another.
 

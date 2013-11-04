@@ -9,6 +9,7 @@ Contents:
    bbi
    db
    genome
+   util
              
 Indices and tables
 ==================

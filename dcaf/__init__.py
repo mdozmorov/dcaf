@@ -15,3 +15,5 @@ except:
         from dcaf.version import __version__
     except ImportError:
         __version__ = "UNKNOWN"
+
+_entry_points = []

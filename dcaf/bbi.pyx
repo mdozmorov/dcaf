@@ -1,21 +1,24 @@
 """
-:moduleauthor: Cory Giles <mail@corygil.es>
+A read-only API for BBI (BigWig and BigBED) files.
+
+.. moduleauthor:: Cory Giles <mail@corygil.es>
+
+.. todo::
+    * add a "normalize" kwarg to "mean"
+    * handle invalid BBI files
+    * handle exons (in Python or C++?)
+    * API for getting BBI header information
+    * Parallelize the "same region across many files" case in BigWigSet
+    * Finish BigBED class
+    * Make BigWigSet read metadata
+    * Make both BigBED and BigWig iterable
 """
+
 import os
 
 from collections import namedtuple
 
 import numpy
-
-# TODO:
-# add a "normalize" kwarg to "mean"
-# handle invalid BBI files
-# handle exons (in Python or C++?)
-# API for getting BBI header information
-# Parallelize the "same region across many files" case in BigWigSet
-# Make BigBED class
-# make BigWigSet read metadata
-# Make both BigBED and BigWig iterable
 
 cdef extern from "dcaf/mmap.hpp" namespace "dcaf":
     cdef cppclass MMFile:

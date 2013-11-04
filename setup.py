@@ -1,5 +1,6 @@
 import glob
 import os
+import pkgutil
 import subprocess
 
 from setuptools import setup
@@ -9,9 +10,22 @@ from Cython.Build import cythonize
 
 import dcaf
 
+# If we are in a git repository, write the current version (based on
+# git tag) to version.py, so that it can be loaded from a source
+# package.
+
 with open("dcaf/version.py", "w") as h:
     h.write("__version__ = '%s'\n" % dcaf.__version__)
     
+# Import all submodules so that the entry points will be properly registered
+# for wrapper script autogeneration.
+
+for loader, module_name, is_pkg in pkgutil.walk_packages(dcaf.__path__):
+    module_name = "dcaf." + module_name
+    loader.find_module(module_name).load_module(module_name)
+
+# Also install any scripts that are in the top level of the script/ directory
+
 scripts = [os.path.abspath("script/" + p) for p in os.listdir("script/") if os.path.isfile(p)]
 
 extensions = [
@@ -48,9 +62,9 @@ setup(
 
     scripts=scripts,
     entry_points={
-        "console_scripts": [
-            "genome-runner = dcaf.genome:main"
-        ]
+        "console_scripts": 
+        ["%s = %s:%s" % (fn.__name__.replace("_", "-"), fn.__module__, fn.__name__)
+         for fn in dcaf._entry_points]
     },
     
     cmdclass= {"build_ext": build_ext},
