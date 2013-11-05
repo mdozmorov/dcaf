@@ -1,5 +1,6 @@
 import codecs
 import contextlib
+import fcntl
 import functools
 import gzip
 import hashlib
@@ -19,18 +20,19 @@ def _is_binary(handle):
     """
     return "b" in handle.mode if isinstance(handle.mode,str) else True
 
+def reader(handle):
+    return codecs.getreader(locale.getpreferredencoding())(handle)
+
+def writer(handle):
+    return codecs.getwriter(locale.getpreferredencoding())(handle)
+
 def _copy_file(src, dst):
     """
-    Copy one file object to another, ignoring broken pipes and
-    silently converting bytes to strings as necessary using the
-    platform's default locale.
+    Copy one text-mode file object to another.
     """
-    if _is_binary(dst) and not _is_binary(src):
-        src = src.encode()
-    elif not _is_binary(dst) and _is_binary(src):
-        src = src.decode()
     try:
-        shutil.copyfileobj(src, dst)
+        for line in src:
+            dst.write(line)
     except BrokenPipeError:
         pass
 
@@ -56,14 +58,14 @@ def _download(url, cache_dir="/tmp/dcaf"):
             with o_handle:
                 shutil.copyfileobj(i_handle, o_handle)
 
-    return gzip.open(path, "r")
+    return gzip.open(path, "rt")
  
 class Handle(dcaf.util.Proxy):
     """
-    A wrapper for file-like objects that contains some additional
-    convenience functions.
+    A wrapper for file-like objects (in text mode)
+    that contains some additional convenience functions.
     """
-    def __init__(self, handle, mode="r"):
+    def __init__(self, handle, mode="rt"):
         if isinstance(handle, str):
             if handle.startswith("ftp://") or handle.startswith("http://"):
                 handle = _download(handle)
@@ -71,6 +73,17 @@ class Handle(dcaf.util.Proxy):
                 handle = gzip.open(handle, mode)
             else:
                 handle = open(handle, mode=mode)
+
+        # FIXME: convert binary mode files to text-mode
+
+        #if False:
+        #    flags = fcntl.fcntl(handle.fileno(), fcntl.F_GETFL, 0)
+        #    encoding = locale.getpreferredencoding()
+        #    if os.O_RDONLY & flags:
+        #        handle = codecs.getreader(encoding)(handle)
+        #    else:
+        #        handle = codecs.getwriter(encoding)(handle)
+        
         super(Handle, self).__init__(handle)
 
     def __or__(self, cmd): 
@@ -81,10 +94,10 @@ class Handle(dcaf.util.Proxy):
             p = subprocess.Popen(cmd, bufsize=-1, shell=True,
                                  stdout=subprocess.PIPE, 
                                  stdin=subprocess.PIPE)
+            o = writer(p.stdin)
             threading.Thread(target=_copy_file,
-                             args=(self, p.stdin)).start()
-            #return codecs.getreader("utf-8")(p.stdout)
-            return Handle(p.stdout)
+                             args=(self, o)).start()
+            return Handle(reader(p.stdout))
         else:
             _copy_file(self, cmd)
     
@@ -104,35 +117,3 @@ class Handle(dcaf.util.Proxy):
         self.as_str()
         for line in self:
             yield line.strip().split(sep)
-
-    def as_str(self):
-        """
-        Ensure this is a string stream. If it is a byte stream,
-        decode it, otherwise do nothing.
-        """
-        if _is_binary(self):
-            self.decode()
-        return self
-    
-    def as_bytes(self):
-        """
-        Ensure this is a bytes stream. If it is a string stream,
-        encode it, otherwise do nothing.
-        """
-        if not _is_binary(self):
-            self.encode()
-        return self
-
-    def encode(self, encoding=locale.getpreferredencoding()):
-        """
-        Encode this stream using the given encoding.
-        """
-        self._wrapped = codecs.getwriter(encoding)(self._wrapped)
-        return self
-    
-    def decode(self, encoding=locale.getpreferredencoding()):
-        """
-        Decode this stream using the given encoding.
-        """
-        self._wrapped = codecs.getreader(encoding)(self._wrapped)
-        return self

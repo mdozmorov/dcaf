@@ -4,9 +4,11 @@ import pkgutil
 import subprocess
 
 from setuptools import setup
+from setuptools.command.test import test as TestCommand
 from distutils.extension import Extension
 from Cython.Distutils import build_ext
 from Cython.Build import cythonize
+from sphinx.setup_command import BuildDoc
 
 import dcaf
 
@@ -20,13 +22,32 @@ with open("dcaf/version.py", "w") as h:
 # Import all submodules so that the entry points will be properly registered
 # for wrapper script autogeneration.
 
-for loader, module_name, is_pkg in pkgutil.walk_packages(dcaf.__path__):
-    module_name = "dcaf." + module_name
-    loader.find_module(module_name).load_module(module_name)
+def import_all():
+    for loader, module_name, is_pkg in pkgutil.walk_packages(dcaf.__path__):
+        module_name = "dcaf." + module_name
+        loader.find_module(module_name).load_module(module_name)
+
+import_all()
 
 # Also install any scripts that are in the top level of the script/ directory
 
-scripts = [os.path.abspath("script/" + p) for p in os.listdir("script/") if os.path.isfile(p)]
+scripts = [os.path.abspath("script/" + p) \
+           for p in os.listdir("script/") if os.path.isfile(p)]
+
+# Run py.test tests from setup.py
+
+class Test(TestCommand):
+    def finalize_options(self):
+        TestCommand.finalize_options(self)
+        self.test_args = []
+        self.test_suite = True
+    
+    def run_tests(self):
+        import pytest
+        errno = pytest.main(self.test_args)
+        raise SystemExit(errno)
+
+# Declare extensions
 
 extensions = [
     Extension(
@@ -39,6 +60,7 @@ extensions = [
 ]
 
 setup(
+    # Metadata
     name="dcaf",
     version=dcaf.__version__,
     author=dcaf.__author__,
@@ -58,8 +80,13 @@ setup(
     ],
     license="AGPLv3+",
 
+    # Modules, data, and extensions to be installed 
     packages=["dcaf"],
+    pacakge_data=["data"],
+    tests_require=["pytest"],
+    ext_modules = extensions,
 
+    # Executable scripts
     scripts=scripts,
     entry_points={
         "console_scripts": 
@@ -67,6 +94,10 @@ setup(
          for fn in dcaf._entry_points]
     },
     
-    cmdclass= {"build_ext": build_ext},
-    ext_modules = extensions
+    # setup.py entry points
+    cmdclass= {
+        "build_ext": build_ext,
+        "test": Test,
+        "doc": BuildDoc
+    }
 )

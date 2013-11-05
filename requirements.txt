@@ -1,11 +1,13 @@
-# Installation and compilation
+# Installation, compilation, testing, and documentation
 setuptools
 cython
+sphinx
 
 # Generic scientific packages
-numpy
 pandas
 scipy
+networkx
+scikit-learn
 
 # Database access
 mysql-connector-python

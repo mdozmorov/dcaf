@@ -5,7 +5,9 @@ Utility functions.
 """
 import functools
 import itertools
+import locale
 import os
+import subprocess
 
 import dcaf
 
@@ -76,3 +78,32 @@ def partition(n, seq):
     while chunk:
         yield chunk
         chunk = get_chunk()
+
+def which(exe):
+    """
+    Find the full path to an executable (calls the shell command).
+    """
+    encoding = locale.getpreferredencoding()
+    path = subprocess.check_output(["which", exe]).decode(encoding).strip()
+    return os.path.realpath(path)
+
+def multimap(pairs):
+    """
+    Given an iterable of pairs, construct a dict mapping the first elements
+    to sets of second elements.
+    """
+    m = {}
+    for k,v in pairs:
+        if not k in m:
+            m[k] = set()
+        m[k].add(v)
+    return m
+
+def coo_to_df(triplets):
+    """
+    Create a SparseDataFrame from a sequence of (row,col,value) triplets.
+    """
+    data = defaultdict(dict)
+    for row, col, val in triplets:
+        data[col][row] = val
+    return SparseDataFrame(data)

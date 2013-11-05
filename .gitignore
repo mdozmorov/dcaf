@@ -15,3 +15,9 @@ build
 *.swo
 .\#*
 \#*
+
+# Virtualenv
+/env
+
+# Temporary code/data
+/scratch
