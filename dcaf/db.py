@@ -13,14 +13,15 @@ genomic region objects.
 """
 import io
 import tarfile
+import sys
 
 import psycopg2
 import mysql.connector
+from plumbum.cmd import tar, grep, cut, zcat, awk
 
 import dcaf
 import dcaf.ontology
 from dcaf.util import Proxy, partition
-from dcaf.io import Handle
 
 # FIXME: Make DCAFConnection.expression id_type parameter an enum (Python 3.4 only)
 # FIXME: Make PostgreSQLConnection and MySQLConnection
@@ -55,19 +56,7 @@ class Table(object):
         c = self._db.cursor()
         c.copy_from(handle, self.name, **kwargs)
         self._db.commit()
-        """
-        for i,group in enumerate(partition(100000, handle)):
-            print(i)
-
-            buffer = io.BytesIO()
-            for line in group:
-                buffer.write(line)
-            buffer.seek(0)
-
-            c.copy_from(buffer, self.name, **kwargs)
-            self._db.commit()
-        """
-        
+       
     def truncate(self):
         """
         Delete all the rows in this table and dependent tables.
@@ -173,15 +162,15 @@ class DCAFConnection(Connection):
             self.execute_file(dcaf.util.open_data("sql/schema.sql"))
             self.execute_file(dcaf.util.open_data("sql/functions.sql"))
 
-    def _import_rows(self, table_name, rows):
-        table = self.table(table_name)
-        table.truncate()
-        sql = "INSERT INTO %s VALUES (%s)" % \
-              (table_name, ",".join(["%s" for _ in table.columns]))
+        self("""
+        INSERT INTO ontology 
+        VALUES (0, 'CORE', 'Core relations inherent to OBO format.')""")
+        self("""
+        INSERT INTO term (id, ontology_id, name) 
+        VALUES (0, 0, 'is_a')""")
+        self("""INSERT INTO term (id, ontology_id, name) 
+        VALUES (1, 0, 'part_of')""")
 
-        c = self.cursor()
-        for group in dcaf.util.partition(1000000, rows):
-            c.executemany(sql, group)
         self.commit()
 
     def initialize(self):
@@ -189,38 +178,74 @@ class DCAFConnection(Connection):
         Load the schema, then download and import core datasets.
         """
         self.load_schema()
-        BASE = "ftp://ftp.ncbi.nlm.nih.gov"
 
-        print("Loading taxon ...")
-        def taxon_rows():
-            url = BASE + "/pub/taxonomy/taxdump.tar.gz"
-            with dcaf.io.download(url, text_mode=False) as stream:
-                tar = tarfile.TarFile(fileobj=stream)
-                with tar.extractfile("names.dmp") as h:
-                    for line in dcaf.io.decode_stream(h):
-                        if "scientific" in line:
-                            fields = line.split("\t")
-                            yield fields[0], fields[2]
-
-        self._import_rows("taxon", taxon_rows())
-
-        print("Loading gene ...")
-        def gene_rows():
-            url = BASE + "/gene/DATA/gene_info.gz"
-            with dcaf.io.download(url) as h:
-                h.__next__()
-                for line in h:
-                    line = line.strip()
-                    if not line:
-                        continue
-                    fields = line.split("\t")
-                    row = (item if item != "-" else None
-                           for item in fields[:3] + [fields[11]])
-                    if row[0] != "366646":
-                        yield row
+        NCBI_BASE = "ftp://ftp.ncbi.nlm.nih.gov"
         
-        self._import_rows("gene", gene_rows())
-       
+        # Load NCBI taxa into 'taxon' table
+        url = NCBI_BASE + "/pub/taxonomy/taxdump.tar.gz"
+        path = dcaf.io.download(url, return_path=True)
+        self.table("taxon").copy(
+            (tar["Oxzf", path, "names.dmp"] | grep["scientific"] \
+             | cut["-f1,3"]).popen().stdout)
+
+        # Load Entrez Gene IDs, names, symbols, etc, into 'gene'
+        path = dcaf.io.download(NCBI_BASE + "/gene/DATA/gene_info.gz", 
+                                return_path=True)
+        self.table("gene").copy(
+            (zcat[path] | grep["-v", "^#"] | cut["-f1-3,12"] \
+            | awk["$1 != 366646"]).popen().stdout)
+
+    def import_medline(self, folder):
+        """
+        Import MEDLINE XML files into the database.
+        """
+        for file in os.listdir(folder):
+            if file.endswith(".xml.gz"):
+                path = os.path.join(folder, file)
+
+    def import_obo(self, handle, namespace, description):
+        """
+        Import an Open Biomedical Ontology (OBO) file into the database.
+        """
+        # is_a = 0
+        # part_of = 1
+        ontology_id = next(self("""
+          INSERT INTO ontology (namespace, description) 
+          VALUES (%s,%s) 
+          RETURNING id""", namespace, description))[0]
+
+        by_accession = {}
+        relations = []
+        obo = dcaf.io.OBOFile(h)
+        for term in obo:
+            term_id = next(self("""
+              INSERT INTO term (ontology_id, accession, name) 
+              VALUES (%s,%s,%s) RETURNING id""",
+                                ontology_id, term.id, term.name))[0]
+            by_accession[term.id] = term_id
+            
+            for parent in term.is_a:
+                relations.append((term.id, parent, 0))
+            for parent in term.part_of:
+                relations.append((term.id, parent, 1))
+
+            for synonym in term.synonym:
+                self("""
+                INSERT INTO synonym (term_id, synonym)
+                VALUES (%s,%s)""", term_id, synonym)
+
+        self.commit()
+        
+        for (child, parent, type) in relations:
+            child = by_accession[child]
+            parent = by_accession[parent]
+            if child and parent:
+                self("""
+                  INSERT INTO term_relation (agent, target, relation)
+                  VALUES (%s,%s,%s)""", child, parent, type)
+
+        self.commit()
+
     @property
     def tables(self):
         q = """
@@ -325,4 +350,11 @@ class UCSCConnection(Connection):
 
 if __name__ == "__main__":
     db = DCAFConnection.from_configuration()
-    db.initialize()
+    db.load_schema()
+    #url = "http://www.geneontology.org/ontology/obo_format_1_2/gene_ontology_ext.obo"
+    #with dcaf.io.download(url) as h:
+    #    db.import_obo(h, "GO", "Gene Ontology")
+    
+    with open("data/brenda.obo") as h:
+        db.import_obo(h, "BTO", "Brenda Tissue Ontology")
+

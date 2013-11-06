@@ -15,7 +15,7 @@
 --DROP TABLE IF EXISTS sample_term;
 --DROP TABLE IF EXISTS feature_term;
 
-CREATE TABLE taxon (
+CREATE TABLE IF NOT EXISTS taxon (
     id SERIAL PRIMARY KEY,
     name VARCHAR(255)
 );

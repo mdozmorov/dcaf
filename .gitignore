@@ -3,6 +3,7 @@
 __pycache__
 /dist
 /*.egg-info
+/*.egg
 
 # Cython & C extensions
 dcaf/*.cpp

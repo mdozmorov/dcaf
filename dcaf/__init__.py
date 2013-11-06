@@ -18,3 +18,8 @@ except:
         __version__ = "UNKNOWN"
 
 _entry_points = []
+
+# Expose API modules
+
+import dcaf.db
+import dcaf.io

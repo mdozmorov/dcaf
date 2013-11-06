@@ -1,7 +1,6 @@
 # Installation, compilation, testing, and documentation
 setuptools
 cython
-sphinx
 
 # Generic scientific packages
 pandas

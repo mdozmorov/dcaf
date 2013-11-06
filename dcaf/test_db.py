@@ -1,4 +1,4 @@
-import dcaf.db
-
 def test_connect():
-    db = dcaf.db.Connection(database="gfa", host="wrendb")
+    import dcaf.db
+
+    db = dcaf.db.DCAFConnection.from_configuration()

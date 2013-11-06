@@ -83,6 +83,7 @@ setup(
     packages=["dcaf"],
     pacakge_data=["data"],
     tests_require=["pytest"],
+    extras_require={"doc": "sphinx"},
     ext_modules = extensions,
 
     # Executable scripts
