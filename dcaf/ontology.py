@@ -127,3 +127,19 @@ class Ontology(nx.DiGraph):
         return DataFrame.from_records(rows, 
                                       columns=columns, 
                                       index="Term ID").sort("P-Value")
+
+def gsea_enrichment_score(labels, ranking, p=1):
+    hits = np.power(np.abs(ranking * labels), p)
+    p_hit = hits.cumsum() / hits.sum()
+    p_miss = (np.abs(labels - 1) / (labels.shape[0] - labels.sum())).cumsum()
+    dx = p_hit - p_miss
+    return dx[np.abs(dx).argmax()]
+
+#go = Ontology()
+#df = go.gsea(C["Age Correlation"])
+
+#print(C.ix[[3479,3480,2688,2690],:])
+#genes = gene_information(9606)
+
+#n = 200
+#young = go.enrichment(C[:n].index, C.index)

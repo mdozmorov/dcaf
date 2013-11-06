@@ -3,11 +3,13 @@ Utility functions.
 
 .. moduleauthor:: Cory Giles <mail@corygil.es>
 """
+import configparser
 import functools
 import itertools
 import locale
 import os
 import subprocess
+import sys
 
 import dcaf
 
@@ -107,3 +109,25 @@ def coo_to_df(triplets):
     for row, col, val in triplets:
         data[col][row] = val
     return SparseDataFrame(data)
+
+class ConfigurationNotFound(Exception):
+    def __init__(self):
+        super(ConfigurationNotFound, self).__init__()
+
+def find_configuration():
+    """
+    Search sys.path for a 'dcaf.cfg' file. If found, return an open ConfigParser
+    for it. Otherwise, return a ConfigParser with the default configuration.
+    """
+    parser = configparser.ConfigParser(allow_no_value=True)
+    with open_data("defaults.cfg") as h:
+        parser.read_file(h)
+
+    for folder in sys.path:
+        if os.path.exists(folder) and os.path.isdir(folder):
+            for file in os.listdir(folder):
+                if file == "dcaf.cfg":
+                    path = os.path.join(folder, file)
+                    parser.read(path)
+                    return parser
+    return parser

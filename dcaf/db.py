@@ -1,18 +1,29 @@
 """
-API for SQL database containing various genomic data.
+An API for SQL databases containing various genomic data.
+
+The core of this module are various subclasses of the Connection class,
+which serve as thin wrappers around (actually, proxies of) simple DB-API
+connections to various SQL databases. 
+
+Additionally, however, each Connection class implements extra methods
+to query data from the given database and return results in an appropriate
+formats; for example, expression datasets from the DCAFConnection will
+return a pandas DataFrame, and datasets from UCSC will be returned as
+genomic region objects. 
 """
-#import enum
 import io
 import tarfile
 
 import psycopg2
+import mysql.connector
 
 import dcaf
 import dcaf.ontology
 from dcaf.util import Proxy, partition
 from dcaf.io import Handle
 
-#TranscriptID = enum.Enum("Entrez", "Symbol")
+# FIXME: Make DCAFConnection.expression id_type parameter an enum (Python 3.4 only)
+# FIXME: Make PostgreSQLConnection and MySQLConnection
 
 class Table(object):
     def __init__(self, db, name):
@@ -26,8 +37,15 @@ class Table(object):
     def name(self):
         return self._name
         
+    @property
     def columns(self):
-        raise NotImplementedError
+        rs = self._db("""
+        SELECT column_name
+        FROM information_schema.columns
+        WHERE table_name = %s
+        AND table_schema = 'public'
+        ORDER BY ordinal_position""", self.name)
+        return list(r[0] for r in rs)
     
     def copy(self, handle, **kwargs):
         """
@@ -58,46 +76,43 @@ class Table(object):
     
 class Connection(Proxy):
     """
-    Wrapper for a connection to the dcaf PostgreSQL database.
+    Wrapper for a database connection.
     """
     def __init__(self, user=None, password=None, 
-                 database=None, host=None, port=None):
-        """
-        Create a new connection to the dcaf database.
-        
-        If the connection is successful, but the schema 
-        has not yet been loaded, then the DB schema will be loaded,
-        and some small, core datasets will be imported.
-        
-        Large datasets like MEDLINE, GEO, etc, must be imported manually.
-        """
-        self._db = psycopg2.connect(user=user, password=password, 
-                                    database=database, 
-                                    host=host, port=port)
+                 schema=None, host=None, port=None):
+        if self.DRIVER == "postgres":
+            self._db = psycopg2.connect(user=user, password=password, 
+                                        database=schema, 
+                                        host=host, port=port)
+        elif self.DRIVER == "mysql":
+            self._db = mysql.connector.connect(user=user,
+                                               password=password,
+                                               host=host,
+                                               port=port,
+                                               database=schema)
+        else:
+            raise Exception("This database driver not supported.")
+
+        self.schema = schema
+
         super(Connection,self).__init__(self._db)
+    
+    @classmethod
+    def from_configuration(cls):
+        """
+        Connect to the database by searching for an appropriate 'dcaf.cfg' file.
+        Any parameters from this file, if found, will override the 
+        default connection parameters.
+        """
+        # FIXME: overridable kwargs
+        cfg = dcaf.util.find_configuration()
+        section = cls.CFG_SECTION
+        return cls(user=cfg.get(section, "user"),
+                   password=cfg.get(section, "password"),
+                   schema=cfg.get(section, "schema"), 
+                   host=cfg.get(section, "host"), 
+                   port=cfg.get(section, "port"))
 
-        if not "taxon" in self.tables:
-            self.initialize()
-
-    def initialize(self):
-        """
-        Load the database schema and core datasets.
-        """
-        self.execute_file(dcaf.util.open_data("sql/schema.sql"))
-        self.execute_file(dcaf.util.open_data("sql/functions.sql"))
-        
-    @property
-    def tables(self):
-        q = """
-        SELECT table_name 
-        FROM information_schema.tables
-        WHERE table_schema = 'public'
-        """
-        return list(row[0] for row in self.execute(q))
-        
-    def table(self, name):
-        return Table(self, name)
-        
     def execute(self, sql, *params):
         """
         Execute SQL on this connection.
@@ -130,7 +145,92 @@ class Connection(Proxy):
             file = open(file)
         with file:
             return self.execute(file.read())
-    
+
+    def table(self, name):
+        return Table(self, name)
+ 
+class DCAFConnection(Connection):
+    """
+    Wrapper for the dcaf PostgreSQL database.
+    """
+    DRIVER = "postgres"
+    CFG_SECTION = "database"
+
+    """
+    Create a new connection to the dcaf database.
+
+    If the connection is successful, but the schema 
+    has not yet been loaded, then the DB schema will be loaded,
+    and some small, core datasets will be imported.
+
+    Large datasets like MEDLINE, GEO, etc, must be imported manually.
+    """
+    def load_schema(self):
+        """
+        (Re)load the database schema.
+        """
+        if not "taxon" in self.tables:
+            self.execute_file(dcaf.util.open_data("sql/schema.sql"))
+            self.execute_file(dcaf.util.open_data("sql/functions.sql"))
+
+    def _import_rows(self, table_name, rows):
+        table = self.table(table_name)
+        table.truncate()
+        sql = "INSERT INTO %s VALUES (%s)" % \
+              (table_name, ",".join(["%s" for _ in table.columns]))
+
+        c = self.cursor()
+        for group in dcaf.util.partition(1000000, rows):
+            c.executemany(sql, group)
+        self.commit()
+
+    def initialize(self):
+        """
+        Load the schema, then download and import core datasets.
+        """
+        self.load_schema()
+        BASE = "ftp://ftp.ncbi.nlm.nih.gov"
+
+        print("Loading taxon ...")
+        def taxon_rows():
+            url = BASE + "/pub/taxonomy/taxdump.tar.gz"
+            with dcaf.io.download(url, text_mode=False) as stream:
+                tar = tarfile.TarFile(fileobj=stream)
+                with tar.extractfile("names.dmp") as h:
+                    for line in dcaf.io.decode_stream(h):
+                        if "scientific" in line:
+                            fields = line.split("\t")
+                            yield fields[0], fields[2]
+
+        self._import_rows("taxon", taxon_rows())
+
+        print("Loading gene ...")
+        def gene_rows():
+            url = BASE + "/gene/DATA/gene_info.gz"
+            with dcaf.io.download(url) as h:
+                h.__next__()
+                for line in h:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    fields = line.split("\t")
+                    row = (item if item != "-" else None
+                           for item in fields[:3] + [fields[11]])
+                    if row[0] != "366646":
+                        yield row
+        
+        self._import_rows("gene", gene_rows())
+       
+    @property
+    def tables(self):
+        q = """
+        SELECT table_name 
+        FROM information_schema.tables
+        WHERE table_schema = 'public'
+        """
+        return list(row[0] for row in self.execute(q))
+        
+  
     def ontology(self, taxon_id=9606, namespace="GO"):
         """
         Load an ontology from this database into a directed graph.
@@ -148,7 +248,8 @@ class Connection(Proxy):
                                     columns=["id", "symbol", "name"],
                                     orient="index")
 
-    def expression(self, taxon_id=9606, 
+    def expression(self, 
+                   taxon_id=9606, 
                    id_type="entrez",
                    require_age=True, 
                    require_gender=False, 
@@ -218,271 +319,10 @@ class Connection(Proxy):
         return X.groupby(self._symbol_map(taxon_id), 
                          axis=1).max().dropna(thresh=thresh, axis=1)
 
+class UCSCConnection(Connection):
+    DRIVER = "mysql"
+    CFG_SECTION = "UCSC"
 
 if __name__ == "__main__":
-    import sys
-    BASE = "ftp://ftp.ncbi.nlm.nih.gov"
-
-    db = Connection(database="testdb")
-
-    #print("Loading taxon ...")
-    #db.table("taxon").copy(
-    #    Handle(BASE + "/pub/taxonomy/taxdump.tar.gz") \
-    #    | "tar Oxf - names.dmp | grep scientific | cut -f1,3")
-
-    print("Loading gene ...")
-    db.table("gene").truncate()
-    db.table("gene").copy(
-    Handle(BASE + "/gene/DATA/gene_info.gz") \
-        | "sed 1d | grep -v '^#' | cut -f1-3,12 | awk '$1 != 366646'",
-        null="-")
-
-import tempfile
-import os
-import itertools
-from collections import defaultdict
-from subprocess import Popen, PIPE, check_output
-from os.path import realpath, dirname
-
-import numpy
-from pandas import DataFrame, Series, SparseDataFrame
-import pandas
-from sklearn.preprocessing import Imputer
-from sklearn.multiclass import OneVsRestClassifier
-from sklearn.svm import SVC
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import log_loss
-from sklearn.linear_model import LinearRegression, Ridge, Lasso
-from sklearn.svm import SVR
-from numpy import array, fabs
-import numpy as np
-from sklearn.datasets import make_multilabel_classification
-from sklearn.metrics import roc_auc_score
-from sklearn.preprocessing import LabelBinarizer, Imputer
-from sklearn.multiclass import OneVsRestClassifier
-from sklearn.svm import LinearSVC, SVC
-from sklearn.pipeline import Pipeline
-from sklearn.feature_selection import SelectKBest
-from pandas import DataFrame, SparseDataFrame
-
-DataFrame.show = lambda self: self.head(n=3).T.head(n=3).T
-SparseDataFrame.show = DataFrame.show
-
-def impute(X):
-    """
-    Impute the value of missing genes to be the mean expression of that gene
-    across all experiments.
-    
-    Also drops experiments and genes with no data.
-    """
-    if not pandas.isnull(X).sum().sum():
-        return X
-    X = X.dropna(axis=0, how="all").dropna(axis=1, how="all")
-    model = Imputer(axis=1, strategy="mean")
-    return DataFrame(model.fit_transform(X),
-                     index=X.index,
-                     columns=X.columns)
-
-URSA_MEAN = 7.32
-URSA_STDEV = 2.63
-
-def infer_tissue(X):
-    """
-    Infer tissue for sample(s). The columns should be gene symbols.
-    """
-    if X.columns.dtype != 'O':
-        raise Exception("The expression matrix columns are not object types, implying they do not contain gene symbols. Gene symbols are required for tissue imputation.")
-
-    URSA_BIN = which("ursa")
-    Xt = impute(X).T
-    env = os.environ.copy()
-    env["OMP_NUM_THREADS"] = "24"
-    with tempfile.NamedTemporaryFile() as h:
-        X.T.dropna().to_csv(h.name, sep="\t")
-        p = Popen([URSA_BIN, "-i", h.name, "-n", str(X.shape[0]), "-r", "1"],
-                  cwd=dirname(URSA_BIN), stdout=PIPE, env=env)
-        T = pandas.io.parsers.read_csv(p.stdout, skiprows=(6*X.shape[0] + 1),
-                                       sep="\t", index_col=0, header=False,
-                                       names=X.index)
-    c.execute("""
-    SELECT translate(term.name, ' ', '_'), term.id
-    FROM term
-    INNER JOIN ontology
-    ON ontology.id=term.ontology_id
-    WHERE ontology.namespace='BTO'""")
-    m = dict([(k.replace("/", "--"),v) for k,v in c])
-    T.index = [m[k] for k in T.index]
-    T.index.name = "Term ID"
-    T.columns.name = "Sample ID"
-    return T
-
-def insert_sample_terms(T, min_p=0.5):
-    """
-    Insert sample-term associations.
-    """
-    assert(T.index.name=="Term ID")
-    assert(T.columns.name=="Sample ID")
-    #for sample_id in T.index:
-    #    c.execute("""
-    #    DELETE FROM sample_term 
-    #    INNER JOIN sample 
-    #    ON sample.id=sample_term.sample_id
-    #    WHERE sample.id=%s""", (sample_id,))
-    c.executemany("""
-    INSERT INTO sample_term (sample_id, term_id, probability)
-    VALUES (%s,%s,%s)""", 
-                  ((int(r[1]), int(r[2]), float(r[3])) for r in
-                   T[T>min_p].unstack().reset_index().dropna().to_records()))
-    db.commit()
-
-def tissue_expression_training_set(taxon_id=9606, limit=200):
-    c.execute("""
-    SELECT sample_term.sample_id, expression.data, 
-        sample_term.term_id, sample_term.probability
-    FROM sample_term
-    INNER JOIN term
-    ON term.id=sample_term.term_id
-    INNER JOIN ontology
-    ON ontology.id=term.ontology_id
-    INNER JOIN sample
-    ON sample.id=sample_term.sample_id
-    INNER JOIN expression
-    ON expression.sample_id=sample.id
-    INNER JOIN platform
-    ON sample.platform_id=platform.id
-    INNER JOIN taxon
-    ON platform.taxon_id=taxon.id
-    WHERE ontology.namespace='BTO'
-    AND sample_term.probability=1
-    AND taxon.id=%s
-    ORDER BY random()
-    LIMIT %s""", (taxon_id, limit))
-    samples, data, tissues, values = zip(*c)
-    T = coo_to_df(zip(samples, tissues, values))
-    T.index.name = "Sample ID"
-    T.columns.name = "Term ID"
-    c.execute("""SELECT id FROM gene WHERE gene.taxon_id=%s ORDER BY id""", 
-              (taxon_id,))
-    X = DataFrame.from_records(list(data),
-                               index=samples, columns=[e[0] for e in c])
-    return X,T
-
-       
-def impute_age():
-    X, P = gfa.platform_expression("GPL96")
-    model = impute.KNNImputer()
-    Xi = model.fit_transform(X, axis=1)
-
-    age = array(P["age"].tolist())
-    Xm = Xi.as_matrix()
-    ix = array((age >= 10) & (age <= 120)).nonzero()[0]
-    np.random.shuffle(ix)
-    Xm = Xm[ix,:]
-    age = age[ix]
-
-    n_train = 2000
-    n_test = 500
-    #clf = SVR(C=1e-5, epsilon=1)
-    #clf = LinearRegression()
-    clf = Ridge()
-    #clf = SimpleRegressor()
-    #clf = Lasso()
-    clf.fit(Xm[:n_train,:], age[:n_train])
-    y = age[n_train:(n_train+n_test)]
-    y_hat = clf.predict(Xm[n_train:(n_train+n_test)])
-    dy = y - y_hat
-
-    bias_tr = y_hat.mean() - age.mean()
-    print("\nBias (vs train):\t\t", bias_tr)
-    print("Bias (vs test):\t\t\t", dy.mean())
-    print("Mean error:\t\t\t", fabs(dy).mean())
-    print("Mean error (bias corrected):\t", fabs(dy - bias_tr).mean())
-    print("MSE:\t\t\t\t", np.power(dy,2).mean())
-    #clf.fit(Xi.as_matrix(), age)
-
- 
-"""
-g = gfa.ontology_graph()
-X,T = gfa.tissue_expression_training_set(limit=10000)
-X = X.dropna(axis=1, how="all")
-#from grtk.impute import KNNImputer
-#Xi = KNNImputer().fit_transform(X)
-Xi = DataFrame(Imputer().fit_transform(X.as_matrix()),
-               index=X.index, columns=X.columns)
-Xs = Xi.as_matrix()
-
-Tt = T.T
-data = {}
-for i in Tt.columns:
-    data[i] = {}
-    for j in Tt.index[Tt.ix[:,i].to_dense().notnull()]:
-        data[i][j] = 1
-        if j in g:
-            for ancestor in g.successors(j):
-                data[i][ancestor] = 1
-
-Ts = SparseDataFrame(data).T.to_sparse(fill_value=0)
-Ts = Ts.fillna(-1).as_matrix()
-
-Xs = Xi.as_matrix()
-
-base_clf = Pipeline([('feature_selection', SelectKBest(k=100)),
-                     ('svm', SVC(probability=True))])
-clf = OneVsRestClassifier(base_clf, n_jobs=-1)
-N_train = 5000
-ix = np.invert((Ts[:N_train,:] == -1).all(axis=0))
-clf.fit(Xs[:N_train,:], Ts[:N_train,ix])
-
-N_test = 1000
-print(roc_auc_score(Ts[N_train:(N_train+N_test),ix].flat, 
-                    clf.predict_proba(Xs[N_train:(N_train+N_test),:]).flat))
-"""
-
-def gsea_enrichment_score(labels, ranking, p=1):
-    hits = np.power(np.abs(ranking * labels), p)
-    p_hit = hits.cumsum() / hits.sum()
-    p_miss = (np.abs(labels - 1) / (labels.shape[0] - labels.sum())).cumsum()
-    dx = p_hit - p_miss
-    return dx[np.abs(dx).argmax()]
-
-def gene_information(taxon_id):
-    c.execute("""
-    SELECT id,symbol,name
-    FROM gene
-    WHERE taxon_id=%s""", (taxon_id,))
-    return DataFrame.from_records(list(map(tuple,c)), 
-                                  index="Gene ID", 
-                                  columns=["Gene ID", "Symbol", "Name"])
-
-#go = Ontology()
-#df = go.gsea(C["Age Correlation"])
-
-"""
-X, P = taxon_expression(9606)
-X = X.dropna(axis=1, how="all")
-Xi = DataFrame(Imputer().fit_transform(X.as_matrix()),
-               index=X.index, columns=X.columns)
-"""
-
-#C = Xi.corrwith(P["age"])
-#C.name = "Age Correlation"
-#C = genes.join(C, how="inner").sort("Age Correlation")
-
-"""
-ix = (P["age"] > 10) & (P["age"] < 100)
-C = Xi.ix[ix,:].corrwith(P.ix[ix,"age"])
-C.sort()
-"""
-
-#print(C.ix[[3479,3480,2688,2690],:])
-#genes = gene_information(9606)
-
-#n = 200
-#young = go.enrichment(C[:n].index, C.index)
-
-def queryUCSC(assembly, query):
-    db = mysql.connector.connect(user="genome", password="genome",
-                                 host="wrendb", database=assembly)
-    df = pandas.io.sql.read_frame(query, db)
-    db.close()
-    return df
+    db = DCAFConnection.from_configuration()
+    db.initialize()

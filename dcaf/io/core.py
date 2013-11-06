@@ -36,9 +36,9 @@ def _copy_file(src, dst):
     except BrokenPipeError:
         pass
 
-def _download(url, cache_dir="/tmp/dcaf"):
+def download(url, text_mode=True, cache=True, cache_dir="/tmp/dcaf"):
     """
-    Download a URL, caching and compressing the result.
+    Download a URL, possibly caching and compressing the result.
     
     :param url: The URL to download
     :type url: str
@@ -53,13 +53,19 @@ def _download(url, cache_dir="/tmp/dcaf"):
 
     if not os.path.exists(path):
         i_handle = urllib.request.urlopen(url)
+        if not cache:
+            return decode_stream(i_handle) if text_mode else i_handle
         o_handle = open(path, "wb") if url.endswith(".gz") else gzip.open(path, "wb")
         with i_handle:
             with o_handle:
                 shutil.copyfileobj(i_handle, o_handle)
 
-    return gzip.open(path, "rt")
+    mode = "rt" if text_mode else "rb"
+    return gzip.open(path, mode)
  
+def decode_stream(stream, encoding=locale.getpreferredencoding()):
+    return codecs.getreader(encoding)(stream)
+
 class Handle(dcaf.util.Proxy):
     """
     A wrapper for file-like objects (in text mode)
@@ -68,7 +74,7 @@ class Handle(dcaf.util.Proxy):
     def __init__(self, handle, mode="rt"):
         if isinstance(handle, str):
             if handle.startswith("ftp://") or handle.startswith("http://"):
-                handle = _download(handle)
+                handle = download(handle)
             elif handle.endswith(".gz"):
                 handle = gzip.open(handle, mode)
             else:
@@ -101,6 +107,12 @@ class Handle(dcaf.util.Proxy):
         else:
             _copy_file(self, cmd)
     
+    def __enter__(self, *args, **kwargs):
+        return self._wrapped.__enter__(*args, **kwargs)
+
+    def __exit__(self, *args, **kwargs):
+        return self._wrapped.__exit__(*args, **kwargs)
+
     def __iter__(self):
         return iter(self._wrapped)
     

@@ -16,6 +16,9 @@ build
 .\#*
 \#*
 
+# Configuration
+dcaf.cfg
+
 # Virtualenv
 /env
 
