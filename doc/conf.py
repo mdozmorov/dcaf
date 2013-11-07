@@ -34,6 +34,7 @@ def setup(app):
 extensions = [
     'sphinx.ext.autodoc', 
     'sphinx.ext.doctest', 
+    'sphinx.ext.intersphinx',
     'sphinx.ext.todo', 
     'sphinx.ext.mathjax', 
     'sphinx.ext.viewcode'
@@ -239,3 +240,11 @@ texinfo_documents = [
 
 # How to display URL addresses: 'footnote', 'no', or 'inline'.
 #texinfo_show_urls = 'footnote'
+
+# -- Intersphinx -- #
+
+intersphinx_mapping = {
+    'python': ('http://docs.python.org/3.3', None),
+    'pandas': ('http://pandas.pydata.org/pandas-docs/dev/', None),
+    'numpy': ('http://docs.scipy.org/doc/numpy/', None)
+}

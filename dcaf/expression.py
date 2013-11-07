@@ -15,9 +15,18 @@ from dcaf.io import read_matrix
 
 standardize = lambda X: X.apply(lambda x: (x - x.mean()) / x.std(), axis=1)
 
-def pearson_distance(X, Y):
-
-    # Calculate the distance matrix
+def pearson_distance(X, Y=None):
+    """
+    Return the Pearson distance matrix between the two provided matrices,
+    if Y is provided, otherwise, the self-distance between each element in X.
+    
+    :param X: The first matrix
+    :type X: :py:class:`pandas.DataFrame`
+    :param Y: The second matrix
+    :type Y: :py:class:`pandas.DataFrame`
+    :rtype: :py:class:`pandas.DataFrame`
+    """
+    assert(numpy.array(X.columns == Y.columns).all())
     n = len(X.columns) - 1
     D = 1 - (numpy.dot(standardize(X), standardize(Y).T) / n)
     return pandas.DataFrame(D, index=X.index, columns=Y.index)
