@@ -123,7 +123,7 @@ def find_configuration():
     with open_data("defaults.cfg") as h:
         parser.read_file(h)
 
-    for folder in sys.path:
+    for folder in sys.path + ["."]:
         if os.path.exists(folder) and os.path.isdir(folder):
             for file in os.listdir(folder):
                 if file == "dcaf.cfg":
