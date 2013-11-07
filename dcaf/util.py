@@ -26,7 +26,7 @@ def entry_point(fn):
             args = sys.argv[1:]
         return fn(args)
     wrapped.__doc__ = fn.__name__ + "(argv)\n" + fn.__doc__
-    dcaf._entry_points.append(wrapped)
+    dcaf._entry_points[fn.__name__.replace("_","-")] = wrapped
     return wrapped
 
 class Proxy(object):
@@ -53,18 +53,6 @@ class Proxy(object):
     def __dir__(self):
         return list(set(self.__dict__.keys()) | set(dir(self._wrapped)))
   
-def open_data(path):
-    """
-    Return a file handle to a data file (for data files included
-    in the dcaf installation).
-
-    :param path: Path to the data file, relative to the data root folder.
-    :type path: str
-    """
-    return open(os.path.join(os.path.dirname(__file__), 
-                             "..", "data", 
-                             *os.path.split(path)))
-
 def partition(n, seq):
     """
     Partition an iterator or collection into chunks of size n.
@@ -120,7 +108,7 @@ def find_configuration():
     for it. Otherwise, return a ConfigParser with the default configuration.
     """
     parser = configparser.ConfigParser(allow_no_value=True)
-    with open_data("defaults.cfg") as h:
+    with open(dcaf.io.data("defaults.cfg")) as h:
         parser.read_file(h)
 
     for folder in sys.path + ["."]:
@@ -128,6 +116,5 @@ def find_configuration():
             for file in os.listdir(folder):
                 if file == "dcaf.cfg":
                     path = os.path.join(folder, file)
-                    parser.read(path)
-                    return parser
+                    parser.read([path])
     return parser

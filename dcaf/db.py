@@ -14,6 +14,7 @@ genomic region objects.
 import io
 import tarfile
 import sys
+import pandas
 
 import psycopg2
 import mysql.connector
@@ -159,8 +160,8 @@ class DCAFConnection(Connection):
         (Re)load the database schema.
         """
         if not "taxon" in self.tables:
-            self.execute_file(dcaf.util.open_data("sql/schema.sql"))
-            self.execute_file(dcaf.util.open_data("sql/functions.sql"))
+            self.execute_file(open(dcaf.io.data("sql/schema.sql")))
+            self.execute_file(open(dcaf.io.data("sql/functions.sql")))
 
         self("""
         INSERT INTO ontology 
@@ -269,18 +270,14 @@ class DCAFConnection(Connection):
         FROM gene 
         WHERE taxon_id=%s 
         ORDER BY id""", (taxon_id,))
-        return DataFrame.from_items([(row[0], row) for row in c], 
-                                    columns=["id", "symbol", "name"],
-                                    orient="index")
+        return pandas.DataFrame.from_items([(row[0], row) for row in c], 
+                                           columns=["id", "symbol", "name"],
+                                           orient="index")
 
-    def expression(self, 
-                   taxon_id=9606, 
-                   id_type="entrez",
-                   require_age=True, 
-                   require_gender=False, 
-                   limit=None):
+    def expression(self, taxon_id=9606, id_type="entrez", require_age=True, 
+                   require_gender=False, shuffle=False, limit=None):
         """
-        Get an expression set corresponding to the given criteria.
+        Fetch an expression set corresponding to the given criteria.
         """
         assert(id_type in ("entrez", "symbol"))
 
@@ -299,16 +296,18 @@ class DCAFConnection(Connection):
             query += "\nAND sample.gender IS NOT NULL"
         if limit:
             query += "\tLIMIT " + str(limit)
+        if shuffle:
+            query = "SELECT * FROM (%s) AS subq ORDER BY random()" % query
 
         c = self._db.cursor("expression")
         c.itersize = 1
         c.execute(query, (taxon_id,))
         samples, age, gender, expression = zip(*c)
-        X = DataFrame.from_records(list(expression), 
-                                   index=samples, columns=genes.index)
+        X = pandas.DataFrame.from_records(list(expression), 
+                                          index=samples, columns=genes.index)
         X.index.name = "Sample ID"
         X.columns.name = "Gene ID"
-        P = DataFrame({"age": age, "gender": gender}, index=samples)
+        P = pandas.DataFrame({"age": age, "gender": gender}, index=samples)
         P.index.name = "Sample"
 
         if id_type == "symbol":
@@ -345,16 +344,22 @@ class DCAFConnection(Connection):
                          axis=1).max().dropna(thresh=thresh, axis=1)
 
 class UCSCConnection(Connection):
+    """
+    A connection to the (MySQL) database underlying the UCSC Genome Browser.
+    """
     DRIVER = "mysql"
     CFG_SECTION = "UCSC"
 
 if __name__ == "__main__":
-    db = DCAFConnection.from_configuration()
-    db.load_schema()
+    pass
+    #db = DCAFConnection.from_configuration()
+    #top_coexpressed()
+    #db.load_schema()
+
     #url = "http://www.geneontology.org/ontology/obo_format_1_2/gene_ontology_ext.obo"
     #with dcaf.io.download(url) as h:
     #    db.import_obo(h, "GO", "Gene Ontology")
     
-    with open("data/brenda.obo") as h:
-        db.import_obo(h, "BTO", "Brenda Tissue Ontology")
+    #with open("data/brenda.obo") as h:
+    #    db.import_obo(h, "BTO", "Brenda Tissue Ontology")
 

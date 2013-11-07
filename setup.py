@@ -81,7 +81,7 @@ setup(
 
     # Modules, data, and extensions to be installed 
     packages=["dcaf"],
-    pacakge_data=["data"],
+    package_data={"dcaf": "data"},
     tests_require=["pytest"],
     extras_require={"doc": "sphinx"},
     ext_modules = extensions,
@@ -90,8 +90,8 @@ setup(
     scripts=scripts,
     entry_points={
         "console_scripts": 
-        ["%s = %s:%s" % (fn.__name__.replace("_", "-"), fn.__module__, fn.__name__)
-         for fn in dcaf._entry_points]
+        ["%s = %s:%s" % (script_name, fn.__module__, fn.__name__)
+         for script_name, fn in dcaf._entry_points.items()]
     },
     
     # setup.py entry points

@@ -17,9 +17,10 @@ except:
     except ImportError:
         __version__ = "UNKNOWN"
 
-_entry_points = []
+_entry_points = {}
 
 # Expose API modules
 
 import dcaf.db
 import dcaf.io
+import dcaf.expression

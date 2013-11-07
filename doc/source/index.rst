@@ -10,6 +10,7 @@ Contents:
    db
    genome
    util
+   expression
              
 Indices and tables
 ==================
