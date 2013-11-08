@@ -48,8 +48,9 @@ def pairwise_distance(argv):
     Alternatively, the -m flag will allow the complete distance matrix
     to be output.
 
-    The default metric is Pearson distance.
+    The default metric is Pearson distance. 
     """
+    # FIXME: Implement other distance metrics. See: http://gedas.bizhat.com/dist.htm
     # FIXME: Implement -n for files.
 
     parser = argparse.ArgumentParser(
