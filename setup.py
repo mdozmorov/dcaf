@@ -50,9 +50,9 @@ class Test(TestCommand):
 
 extensions = [
     Extension(
-        "dcaf.bbi",
+        "dcaf.io.bbi",
         include_dirs=["include"],
-        sources=["dcaf/bbi.pyx", "src/bbi/bbi.cpp"],
+        sources=["dcaf/io/bbi.pyx", "src/bbi/bbi.cpp"],
         extra_compile_args=["-std=c++0x"],
         libraries=["z"],
         language="c++")

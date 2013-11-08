@@ -6,8 +6,6 @@ __pycache__
 /*.egg
 
 # Cython & C extensions
-dcaf/*.cpp
-dcaf/*.c
 build
 *.so
 

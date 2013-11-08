@@ -1,6 +1,6 @@
-dcaf.bbi - Read-only API for BigWig and BigBed files
-====================================================
+dcaf.io.bbi - Read-only API for BigWig and BigBed files
+=======================================================
 
-.. automodule:: dcaf.bbi
+.. automodule:: dcaf.io.bbi
     :members:
     :synopsis: Read-only API for BigWig and BigBed files
