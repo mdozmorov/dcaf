@@ -8,6 +8,10 @@ scipy
 networkx
 scikit-learn
 
+# Optional speedup packages for pandas
+numexpr
+bottleneck
+
 # Database access
 mysql-connector-python
 psycopg2
