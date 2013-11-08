@@ -3,7 +3,8 @@ pip
 setuptools
 cython
 
-# Generic scientific packages
+# Generic scientific packages (numpy is implied, as it is
+#   a dependency of several of these packages)
 pandas
 scipy
 networkx
@@ -19,6 +20,7 @@ psycopg2
 
 # Miscellaneous
 termcolor
+plumbum
 
 # Bioinformatics packages
 pysam

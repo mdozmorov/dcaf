@@ -1,3 +1,4 @@
+import sys
 import os
 import pkgutil
 import subprocess
@@ -62,12 +63,14 @@ try:
 except ImportError:
     pass
 
-# Import all submodules so that the entry points will be properly registered
-# for wrapper script autogeneration.
+# Find registered entry points
 
 entry_points = {}
 
 try:
+    # Import all submodules so that the entry points will be properly registered
+    # for wrapper script autogeneration.
+
     for loader, module_name, is_pkg in pkgutil.walk_packages(dcaf.__path__):
         module_name = "dcaf." + module_name
         loader.find_module(module_name).load_module(module_name)
@@ -115,7 +118,7 @@ setup(
     packages=["dcaf"],
     package_data={"dcaf": ["data"]},
     install_requires=REQUIREMENTS,
-    tests_require=["pytest"],
+    tests_require=REQUIREMENTS + ["pytest"],
     extras_require={"doc": REQUIREMENTS},
     ext_modules=extensions,
 

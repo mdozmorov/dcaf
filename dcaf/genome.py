@@ -506,6 +506,7 @@ def color_p_value(p_value, cutoff=0.05, log10=True, signed=True):
     if overrepresentation.
    
     Colors:
+
     - green if significantly overrepresented
     - red if significantly underrepresented
     - yellow if unsigned and significant
