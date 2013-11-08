@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """
 Recursively search a directory for FastQC ZIP files, 
 outputting a summary in tab-delimited format.
@@ -60,7 +60,8 @@ def main(argv):
     for root, dirs, files in os.walk(opts.basedir):
         for file in files:
             if file.endswith("fastqc.zip"):
-                rows.append(process_fastqc(file, not opts.simple))
+                path = os.path.join(root, file)
+                rows.append(process_fastqc(path, not opts.simple))
     df = pandas.DataFrame(rows)
     df.index = df["Filename"]
     df.drop("Filename",1).to_csv(sys.stdout, sep="\t")
