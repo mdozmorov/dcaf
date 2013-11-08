@@ -7,10 +7,12 @@ from setuptools.command.test import test as TestCommand
 from distutils.extension import Extension
 from pip.req import parse_requirements
 
+import dcaf
+
 NAME = "dcaf"
-VERSION = "0.0.1"
-AUTHOR = "Cory Giles and Mikhail Dozmorov"
-AUTHOR_EMAIL = "mail@corygil.es"
+VERSION = dcaf.__version__
+AUTHOR = dcaf.__author__
+AUTHOR_EMAIL = dcaf.__author_email__
 DESCRIPTION = "Utilities for genome analysis, expression analysis, and text mining used by the Wren Lab at the Oklahoma Medical Research Foundation."
 CLASSIFIERS = [
     "Development Status :: 3 - Alpha",
@@ -25,7 +27,15 @@ CLASSIFIERS = [
     "Topic :: Scientific/Engineering :: Bio-Informatics"
 ]
 LICENSE = "AGPLv3+"
+REQUIREMENTS = [str(item.req) for item in parse_requirements("requirements.txt")]
 
+# If we are in a git repository, write the current version (based on
+# git tag) to version.py, so that it can be loaded from a source
+# package.
+
+with open("dcaf/version.py", "w") as h:
+    h.write("__version__ = '%s'\n" % dcaf.__version__)
+ 
 cmdclass = {}
 extensions = []
 
@@ -55,18 +65,22 @@ except ImportError:
 # Import all submodules so that the entry points will be properly registered
 # for wrapper script autogeneration.
 
-#import dcaf
-#for loader, module_name, is_pkg in pkgutil.walk_packages(dcaf.__path__):
-#    module_name = "dcaf." + module_name
-#    loader.find_module(module_name).load_module(module_name)
+entry_points = {}
 
-# If we are in a git repository, write the current version (based on
-# git tag) to version.py, so that it can be loaded from a source
-# package.
+try:
+    for loader, module_name, is_pkg in pkgutil.walk_packages(dcaf.__path__):
+        module_name = "dcaf." + module_name
+        loader.find_module(module_name).load_module(module_name)
 
-#with open("dcaf/version.py", "w") as h:
-#    h.write("__version__ = '%s'\n" % dcaf.__version__)
-    
+    entry_points={
+        "console_scripts": 
+        ["%s = %s:%s" % (script_name, fn.__module__, fn.__name__)
+         for script_name, fn in dcaf._entry_points.items()]
+    }
+except ImportError:
+    pass
+
+   
 # Also install any scripts that are in the top level of the script/ directory
 
 scripts = [os.path.abspath("script/" + p) \
@@ -86,8 +100,6 @@ class Test(TestCommand):
         raise SystemExit(errno)
 
 cmdclass["test"] = Test
-
-REQUIREMENTS = [str(item.req) for item in parse_requirements("requirements.txt")]
 
 setup(
     # Metadata
@@ -109,11 +121,7 @@ setup(
 
     # Executable scripts
     scripts=scripts,
-    #entry_points={
-    #    "console_scripts": 
-    #    ["%s = %s:%s" % (script_name, fn.__module__, fn.__name__)
-    #     for script_name, fn in dcaf._entry_points.items()]
-    #},
+    entry_points=entry_points,
     
     # setup.py entry points
     cmdclass=cmdclass

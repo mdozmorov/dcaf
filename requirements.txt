@@ -1,4 +1,5 @@
 # Installation, compilation, testing, and documentation
+pip
 setuptools
 cython
 
