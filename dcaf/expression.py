@@ -15,21 +15,29 @@ from dcaf.io import read_matrix
 
 standardize = lambda X: X.apply(lambda x: (x - x.mean()) / x.std(), axis=1)
 
-def pearson_distance(X, Y=None):
+def pearson_distance(X, Y=None): 
     """
-    Return the Pearson distance matrix between the two provided matrices,
-    if Y is provided, otherwise, the self-distance between each element in X.
+    Return a generator containing, for each row in X, the Pearson
+    distance between that row and each row in Y, if Y is provided.
+    Otherwise, the self-distance between each element in X.
     
     :param X: The first matrix
     :type X: :py:class:`pandas.DataFrame`
     :param Y: The second matrix
     :type Y: :py:class:`pandas.DataFrame`
-    :rtype: :py:class:`pandas.DataFrame`
+    :rtype: generator of :py:class:`pandas.Series`
     """
+    if Y is None:
+        Y = X
     assert(numpy.array(X.columns == Y.columns).all())
     n = len(X.columns) - 1
-    D = 1 - (numpy.dot(standardize(X), standardize(Y).T) / n)
-    return pandas.DataFrame(D, index=X.index, columns=Y.index)
+    X = standardize(X)
+    Y = standardize(Y)
+    for i in X.index:
+        dist = 1 - numpy.dot(Y, X.ix[i,:])
+        yield pandas.Series(dist, index=Y.index)
+    #D = 1 - (numpy.dot(standardize(X), standardize(Y).T) / n)
+    #return pandas.DataFrame(D, index=X.index, columns=Y.index)
 
 @dcaf.util.entry_point
 def pairwise_distance(argv):
@@ -79,6 +87,7 @@ def pairwise_distance(argv):
 
     args = parser.parse_args(argv)
 
+
     def prepare(M):
         M = M.dropna(how='all', axis=(0,1))
         return pandas.DataFrame(Imputer().fit_transform(M.as_matrix()),
@@ -107,12 +116,14 @@ def pairwise_distance(argv):
 
     # Output the results
     if args.output_matrix:
-        D.to_csv(sys.stdout, float_format="%0.3f", sep="\t")
+        raise NotImplementedError
+        #D.to_csv(sys.stdout, float_format="%0.3f", sep="\t")
     else:
-        D[numpy.isnan(D)] = numpy.inf
-        for i,rn in enumerate(X.index):
-            print(rn,*(Y.index[j] for j in \
-                    D.iloc[i,:].argsort()[:args.k]), sep="\t")
+        #D[numpy.isnan(D)] = numpy.inf
+        for i,d in enumerate(D):
+            rn = X.index[i]
+            d = d.fillna(numpy.inf)
+            print(rn,*(Y.index[j] for j in d.argsort()[:args.k]) , sep="\t")
 
 if __name__ == "__main__":
     pairwise_distance()
