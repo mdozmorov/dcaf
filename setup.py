@@ -104,6 +104,13 @@ class Test(TestCommand):
 
 cmdclass["test"] = Test
 
+# Create list of data files with paths relative to the base dcaf directory
+package_data = []
+for root, dirs, files in os.walk("data"):
+    print(files)
+    for file in files:
+        package_data.append(os.path.relpath(os.path.join(root, file), "dcaf"))
+
 setup(
     # Metadata
     name=NAME,
@@ -115,8 +122,8 @@ setup(
     license=LICENSE,
 
     # Modules, data, and extensions to be installed 
-    packages=["dcaf"],
-    package_data={"dcaf": ["data"]},
+    packages=["dcaf", "dcaf.io"],
+    package_data={"dcaf": package_data},
     install_requires=REQUIREMENTS,
     tests_require=REQUIREMENTS + ["pytest"],
     extras_require={"doc": REQUIREMENTS},
