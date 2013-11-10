@@ -3,6 +3,7 @@ dcaf
 ====
 
 Scripts and modules for various bioinformatics tasks, including:
+
 - NGS and genomic feature analysis
 - Text mining
 - Gene expression analysis
