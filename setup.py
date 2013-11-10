@@ -107,7 +107,6 @@ cmdclass["test"] = Test
 # Create list of data files with paths relative to the base dcaf directory
 package_data = []
 for root, dirs, files in os.walk("data"):
-    print(files)
     for file in files:
         package_data.append(os.path.relpath(os.path.join(root, file), "dcaf"))
 
