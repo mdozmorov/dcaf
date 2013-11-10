@@ -12,6 +12,7 @@ import subprocess
 import sys
 
 import dcaf
+import dcaf.io
 
 def entry_point(fn):
     """
@@ -111,7 +112,7 @@ def find_configuration():
     with open(dcaf.io.data("defaults.cfg")) as h:
         parser.read_file(h)
 
-    for folder in sys.path + ["."]:
+    for folder in sys.path + [os.curdir]:
         if os.path.exists(folder) and os.path.isdir(folder):
             for file in os.listdir(folder):
                 if file == "dcaf.cfg":
