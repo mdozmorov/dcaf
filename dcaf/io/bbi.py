@@ -1,15 +1,19 @@
 """
 BigWig and BigBED readers in pure Python.
 """
+import itertools
 import mmap
+import operator
 import sys
 import zlib
 
 from collections import namedtuple
 from functools import lru_cache
-from struct import Struct, unpack, unpack_from, calcsize
+from struct import Struct, unpack
 
 import numpy
+
+__all__ = ["BigWigFile", "BigBEDFile", "IntervalTree", "IntervalNode"]
 
 # FIXME: don't assume native endianness
 
@@ -20,6 +24,9 @@ class IntervalNode(object):
     This is a simple augmented binary search tree as described
     in CLRS 2001.
     """
+
+    __slots__ = ["_start", "_end", "_data", "_left", "_right", "_max_end"]
+
     def __init__(self, intervals):
         midpoint = int(len(intervals) / 2)
         start, end, data = intervals[midpoint]
@@ -47,6 +54,13 @@ class IntervalNode(object):
             return
         if self._right:
             yield from self._right.search(start, end)
+    
+    def __iter__(self):
+        if self._left:
+            yield from self._left
+        yield self._data
+        if self._right:
+            yield from self._right
 
 class IntervalTree(object):
     """
@@ -85,6 +99,11 @@ class IntervalTree(object):
         if not self._built:
             raise Exception("Must call IntervalTree.build() before using search()")
         return self._roots[chrom].search(start, end)
+    
+    def __iter__(self):
+        assert(self._built)
+        for chrom, node in self._roots.items():
+            yield from node
  
 def defstruct(name, format, fields):
     cls = namedtuple(name, fields)
@@ -142,6 +161,10 @@ BedGraphDatum = numpy.dtype([
     ("start", "i4"), ("end", "i4"), ("value", "f4")
 ])
 
+VarStepDatum = numpy.dtype([
+    ("start", "i4"), ("value", "f4")
+])
+
 BEDGraph = namedtuple("BEDGraph", "chrom start end value")
 
 # BigBED structure
@@ -150,16 +173,17 @@ BED = namedtuple("BED", "chrom start end name score strand rest")
 # Region summary
 RegionSummary = namedtuple("RegionSummary", "size covered sum mean0 mean") 
 
-def read_struct(map, cls, count=1, offset=None):
+def read_struct(map, cls, count=None, offset=None):
     if offset is not None:
         map.seek(offset)
 
+    _count = 1 if count is None else count
     size = cls._struct.size
-    data = map.read(size * count)
+    data = map.read(size * _count)
 
     items = [cls._make(cls._struct.unpack_from(data, offset=o)) \
-             for o in range(0, size*count, size)]
-    return items[0] if count == 1 else items
+             for o in range(0, size*_count, size)]
+    return items[0] if count is None else items
 
 class Tree(object):
     """
@@ -171,12 +195,11 @@ class Tree(object):
         self.header = read_struct(map, self.HeaderType, offset=offset)
    
     def _read(self, offset):
-        self._map.seek(offset)
-        node = read_struct(self._map, Node)
+        node = read_struct(self._map, Node, offset=offset)
         cls = self.LeafItem if node.isLeaf else self.NonLeafItem
         items = read_struct(self._map, cls, count=node.count)
         if node.isLeaf:
-            yield from iter(items)
+            yield from items
         else:
             for item in items:
                 yield from self._read(item.childOffset)
@@ -226,6 +249,7 @@ class BBIFile(object):
         self.summary = read_struct(self._map, TotalSummary,
                                    offset=self.header.totalSummaryOffset)
 
+        # Read contigs from B+ Tree
         self._contig_by_id = {}
         self._contig_by_name = {}
         for leaf in BPTree(self._map, self.header.chromosomeTreeOffset):
@@ -234,17 +258,26 @@ class BBIFile(object):
             self._contig_by_id[contig.id] = contig
             self._contig_by_name[contig.name] = contig
 
+        # Read dataCount (# sections for BigWig, # elements in BigBED)
+        self._map.seek(self.header.fullDataOffset)
+        self.dataCount = int.from_bytes(self._map.read(4), byteorder="little")
+        
+        # Read index sections from RTree and cache them in an Interval Tree
         self._leaves = IntervalTree()
         for leaf in RTree(self._map, self.header.fullIndexOffset):
             for contig_id in range(leaf.startChromIx, leaf.endChromIx+1):
                 start = leaf.startBase if (contig_id == leaf.startChromIx) else 0
-                end = leaf.endBase if (contig_id == leaf.endChromIx) else self._contig_by_id[contig_id].size
+                end = leaf.endBase if (contig_id == leaf.endChromIx) \
+                      else self._contig_by_id[contig_id].size
                 self._leaves.add(contig_id, start, end, leaf)
         self._leaves.build()
                                         
     def __del__(self):
-        self._map.close()
-        self._handle.close()
+        try:
+            self._map.close()
+            self._handle.close()
+        except AttributeError:
+            pass
     
     ########################
     # Decoding data sections
@@ -305,7 +338,7 @@ class BBIFile(object):
         """
         Iterate through the elements (BED or BEDGraph) in this BBI file.
         """
-        for leaf in self._rtree:
+        for leaf in self._leaves:
             yield from self._read_section(leaf)
     
     def search(self, contig, start, end):
@@ -328,9 +361,21 @@ class BBIFile(object):
  
 
 class BigWigFile(BBIFile):
-    # Data section formats
+    """
+    A BigWig format file. In this format, genomic regions 
+    can be associated with a floating-point value. BigWig is a compressed, 
+    indexed version of the BEDGraph or Wiggle formats.
+    
+    BigWig differs from BigBED in that genomic regions must be
+    non-overlapping, each genomic region can only be associated with
+    one value, and there is no additional information beyond the
+    floating-point value associated with each region (such as name,
+    strand, exons, etc.). 
+    """ 
+
+    # Data section formats 
     bedGraph = 1
-    varStep = 2
+    varStep = 2 
     fixedStep = 3
 
     def __init__(self, path):
@@ -343,18 +388,31 @@ class BigWigFile(BBIFile):
         data = self._decompress_section(leaf)
         section_header_values = BigWigSectionHeader._struct.unpack_from(data)
         section_header = BigWigSectionHeader._make(section_header_values)
-        assert(section_header.type in (1,2,3))
         data = data[BigWigSectionHeader._struct.size:]
 
         if section_header.type == BigWigFile.bedGraph:
             return numpy.frombuffer(data, dtype=BedGraphDatum)
-        else:
-            msg = "Only BedGraph type BigWig currently supported."
+
+        elif section_header.type == BigWigFile.varStep:
+            elements = numpy.frombuffer(data, dtype=VarStepDatum)
+            end = numpy.zeros(len(elements), dtype="f4")
+            end[-1] = section_header.chromEnd
+            end[:-1] = elements["start"][1:]
+            columns = (elements["start"], end, elements["value"])
+            records = numpy.core.records.fromarrays(columns,
+                                                    dtype=BedGraphDatum)
+            return records
+        elif section_header.type == BigWigFile.fixedStep:
+            msg = "FixedStep BigWig not currently supported."
             raise NotImplementedError(msg)
+        
+        else:
+            raise IOError("BigWig data section type '%s' not a recognized value (corrupted or invalid file?)." % section_header.type)
+
 
     def _search_leaf_internal(self, leaf, contig_id, start, end):
         regions = self._read_section_internal(leaf)
-        ix = (regions["start"] >= start) & (regions["end"] <= end)
+        ix = (regions["start"] < end) & (start < regions["end"])
         return regions[ix]
     
     def _export_element(self, contig_id, element):
@@ -367,14 +425,38 @@ class BigWigFile(BBIFile):
     
     def _search_leaf(self, leaf, contig_id, start, end):
         return (self._export_element(contig_id, e) \
-                for e in self._search_leaf_internal(leaf, data))
+                for e in self._search_leaf_internal(leaf, contig_id, start, end))
    
     ######################################
     # Public API (BigWig specific methods)
     ######################################
 
+    def _collapse_runs(self, elements):
+        # The Kent utilities collapse adjacent elements with the
+        # same value, so we do too for comparability
+        prev = next(elements)
+        for e in elements:
+            if (prev.chrom == e.chrom) and \
+               (prev.end == e.start) and \
+               (abs(prev.value - e.value) < 1e-3):
+                prev = BEDGraph(prev.chrom, prev.start, e.end, prev.value)
+            else:
+                yield prev
+                prev = e
+        yield prev
+    
+    def __iter__(self):
+        it = super(BigWigFile, self).__iter__()
+        return self._collapse_runs(it)
+        
+    def search(self, chrom, start, end):
+        it = super(BigWigFile, self).search(chrom, start, end)
+        return self._collapse_runs(it)
+
+    def __len__(self):
+        return sum(1 for _ in self)
+
     def summarize_region(self, chrom, start, end):
-        # FIXME: doesn't properly handle partially overlapping regions
         length = end - start
         assert(length > 0)
 
@@ -387,6 +469,12 @@ class BigWigFile(BBIFile):
         sum_values = 0
         for leaf in self._search_index(contig_id, start, end):
             regions = self._search_leaf_internal(leaf, contig_id, start, end)
+
+            # Truncate edge regions so that only the overlapping
+            # segments are considered
+            regions["start"][0] = max(regions["start"][0], start)
+            regions["end"][-1] = min(regions["end"][-1], end)
+
             lengths = regions["end"] - regions["start"]
             sum_values += (lengths * regions["value"]).sum()
             bases_covered += lengths.sum()
@@ -425,47 +513,6 @@ class BigBEDFile(BBIFile):
             records.append(record)
             data = data[(_null+1):]
         return records
-
-def read_bed(path):
-    h = open(path)
-    for line in h:
-        chrom, start, end = line.split("\t")[:3]
-        yield chrom, int(start), int(end)
-    h.close()
-
-def testBigWig():
-    bw = BigWigFile("/home/gilesc/data/RNAseq/bw/DRR001622.bw")
-    with open("scratch/knownGene.bed") as h:
-        for i,line in enumerate(h):
-            chrom, start, end = line.split("\t")[:3]
-            print(chrom, start, end, 
-                  bw.summarize_region(chrom, int(start), int(end)).mean)
-            #if i == 10000:
-            #    break
-    #print(bw.summarize_region("chr1", 0, 100000))
-    #print(bw.summary)
-    #data = bw._read_section(next(iter(bw._rtree)))
-    #print(data["value"])
-
-def testBigBED():
-    bb = BigBEDFile("/home/gilesc/labcode/cbio/test/ATF3.bb")
-    for bed in bb.search("chr1", 0, 100000000):
-        print(bed)
-
-def testIntervalTree():
-    itree = IntervalTree()
-    for i, (chrom, start, end) in enumerate(read_bed("scratch/knownGene.bed")):
-        itree.add(chrom,start,end,(chrom,start,end))
-    itree.build()
-    for item in itree.search("chr1", 10000,20000):
-        print(item)
-    for item in itree.search("chrX", 10000,200000):
-        print(item)
-
-testBigWig()
-#testBigBED()
-#testIntervalTree()
-
-#import dcaf.io.bbi
-#bws = dcaf.io.bbi.BigWigSet("~/data/RNAseq/bw/")
-#print(bws._handles[0].sumData)
+    
+    def __len__(self):
+        return self.dataCount

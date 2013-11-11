@@ -10,6 +10,8 @@ import pandas
 
 import dcaf
 
+__all__ = ["download", "data", "read_matrix"]
+
 def download(url, return_path=False,
              text_mode=True, cache=True, cache_dir="/tmp/dcaf"):
     """

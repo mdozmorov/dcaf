@@ -4,6 +4,8 @@ Simple reader for OBO (Open Biomedical Ontology) files.
 
 import collections
 
+__all__ = ["OBOFile"]
+
 OBOTerm = collections.namedtuple("OBOTerm", [
     "id", "name", "synonym", "is_a", "part_of", "namespace"
 ])
