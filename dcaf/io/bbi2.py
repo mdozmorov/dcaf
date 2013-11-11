@@ -14,6 +14,12 @@ import numpy
 # FIXME: don't assume native endianness
 
 class IntervalNode(object):
+    """
+    A RAM-based index for (generic) intervals.
+    
+    This is a simple augmented binary search tree as described
+    in CLRS 2001.
+    """
     def __init__(self, intervals):
         midpoint = int(len(intervals) / 2)
         start, end, data = intervals[midpoint]
@@ -43,18 +49,29 @@ class IntervalNode(object):
             yield from self._right.search(start, end)
 
 class IntervalTree(object):
+    """
+    A RAM-based index for genomic regions on multiple chromosomes.
+    """
     def __init__(self):
         self._intervals = {}
         self._roots = {}
         self._built = False
 
     def add(self, chrom, start, end, data=None):
+        """
+        Add another interval to the tree. This method can only be
+        called if the IntervalTree has not been built yet.
+        """
         if self._built:
             raise Exception("Can't currently mutate a constructed IntervalTree.")
         self._intervals.setdefault(chrom, [])
         self._intervals[chrom].append((start, end, data))
     
     def build(self):
+        """
+        Build the IntervalTree. After this method is called, new intervals
+        cannot be added to the tree.
+        """
         assert(self._intervals)
         for chrom, intervals in self._intervals.items():
             intervals.sort()
@@ -62,6 +79,9 @@ class IntervalTree(object):
         self._built = True
     
     def search(self, chrom, start, end):
+        """
+        Search the IntervalTree for intervals overlapping the given chrom, start, and end.
+        """
         if not self._built:
             raise Exception("Must call IntervalTree.build() before using search()")
         return self._roots[chrom].search(start, end)
