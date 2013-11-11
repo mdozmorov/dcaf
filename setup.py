@@ -44,15 +44,6 @@ try:
     from Cython.Distutils import build_ext
     from Cython.Build import cythonize
 
-    extensions.extend([
-        Extension(
-            "dcaf.io.bbi",
-            include_dirs=["include"],
-            sources=["dcaf/io/bbi.pyx", "src/bbi/bbi.cpp"],
-            extra_compile_args=["-std=c++0x"],
-            libraries=["z"],
-            language="c++")
-    ])
     cmdclass["build_ext"] = build_ext
 except ImportError:
     pass
