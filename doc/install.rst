@@ -21,9 +21,12 @@ Basic installation
                 
       $ pip3 install cython numpy
    
-   But the exact commands depend on your platform. To install numpy
-   via pip, you must have the Python headers installed. On
-   Debian-based systems, like Ubuntu, this is the "python3-dev" package.
+   The exact commands depend on your platform. To install numpy via
+   pip, you must have the Python headers installed. On Debian-based
+   systems, like Ubuntu, this is the "python3-dev" package.
+   
+   Many Linux distributions also have a pre-compiled version of numpy
+   available through the system package manager.
    
    For more help installing numpy, see
    http://www.scipy.org/scipylib/download.html
@@ -40,4 +43,30 @@ Basic installation
         
       $ pip3 install git+ssh://git@bitbucket.org/wrenlab/dcaf.git
       
-   The remaining dependencies should be installed for you.
+   The remaining required dependencies should be installed for you.
+
+Optional dependencies
+=====================
+
+There are some (non-Python) packages that may be required for full
+functionality. These are generally third-party bioinformatics programs
+written in a variety of languages. The ``dcaf`` installer will check
+for these dependencies and warn if any are missing, but will continue
+with the installation.
+
+The dependencies, categorized by task, are:
+
+High-throughput sequencing
+--------------------------
+
+- `FASTQC - A quality control tool for high-throughput sequence data <http://www.bioinformatics.babraham.ac.uk/projects/fastqc/>`_
+
+Genome analysis
+---------------
+
+- `Jim Kent's source utilities (from the UCSC Genome Browser) <http://genomewiki.ucsc.edu/index.php/The_source_tree>`_
+
+Expression analysis
+-------------------
+
+- `URSA (Unveiling RNA Sample Annotation) from Troyanskaya Lab <https://bitbucket.org/youngl/ursa_backend>`_
