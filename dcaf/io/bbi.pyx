@@ -103,13 +103,12 @@ class BigWigSet(object):
     def __init__(self, dir):
         self._handles = []
         self._mean_coverage = []
-        dir = os.path.abspath(dir)
+        dir = os.path.abspath(os.path.expanduser(dir))
         for p in os.listdir(dir):
             if p.endswith(".bw"):
                 h = BigWig(os.path.join(dir,p))
                 self._handles.append(h)
-                s = h.summary
-                self._mean_coverage.append(s.sumData / s.basesCovered)
+                self._mean_coverage.append(h.sumData / h.basesCovered)
         self._mean_coverage = numpy.array(self._mean_coverage)
     
     def mean(self, str chrom, int start, int end, normalize=True):
@@ -118,6 +117,7 @@ class BigWigSet(object):
             v /= self._mean_coverage
         return v
        
+
 def test():
     bws = BigWigSet("/data/OMRF-Sjogren")
     print(bws._handles[0].sumData)

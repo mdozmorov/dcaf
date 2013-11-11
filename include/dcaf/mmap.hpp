@@ -39,5 +39,4 @@ namespace dcaf {
       return ((char*) data) + offset;
     }
   };
-
 }
