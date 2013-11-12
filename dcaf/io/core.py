@@ -20,7 +20,7 @@ class ClosingMixin(object):
     Inherit from this mixin class to make a file-like
     object close upon exiting a 'with statement' block.
 
-    Basically does the same thing as :py:function:`contextlib.closing`,
+    Basically does the same thing as :py:func:`contextlib.closing`,
     except via inheritance.
     """
 
@@ -136,8 +136,3 @@ def read_matrix(path):
     M.index = map(str, M.index)
     M.columns = map(str, M.columns)
     return M
-
-if __name__ == "__main__":
-    with generic_open("http://google.com/") as h:
-        for line in h:
-            print(line)
