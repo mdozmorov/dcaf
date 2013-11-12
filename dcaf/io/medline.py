@@ -1,5 +1,16 @@
 """
 Parser for MEDLINE XML files.
+
+Example:
+
+.. code-block:: python
+   
+    import dcaf.io
+
+    path = "http://www.nlm.nih.gov/databases/dtd/medsamp2013.xml"
+    with dcaf.io.MedlineFile(path) as h:
+        for article in path:
+            print(article)
 """
 
 import datetime
@@ -11,7 +22,7 @@ from collections import namedtuple
 
 from dcaf.io import generic_open as open, ClosingMixin
 
-__all__ = ["MedlineXMLFile"]
+__all__ = ["MedlineXMLFile", "Article", "Journal"]
 
 Article = namedtuple("Article", "id title abstract publication_date journal")
 Journal = namedtuple("Journal", "id issn name")
