@@ -47,6 +47,16 @@ class BEDFile(object):
 
 from dcaf.io import BigWigFile
 
+def _count_regions(args):
+    path, regions = args
+    h = BigWigFile(path)
+    counts = {}
+    for r in regions:
+        mu = h.summarize_region(r.chrom, r.start, r.end).mean
+        mu *= h.summary.basesCovered / h.summary.sumData
+        counts[r.name] = mu
+    return pandas.Series(counts)
+
 class BigWigSet(object):
     def __init__(self, basedir, recursive=False):
         # FIXME: actually test the file magic number to see if it is a BigWig
@@ -63,8 +73,6 @@ class BigWigSet(object):
             if file.endswith(".bw"):
                 path = os.path.join(basedir, file)
                 self._handles.append(BigWigFile(path))
-                if len(self._handles) == 3:
-                    break
         
         self._global_mean = numpy.array([h.summary.sumData / h.summary.basesCovered
                                          for h in self._handles])
@@ -72,11 +80,12 @@ class BigWigSet(object):
                        for h in self._handles]
 
     def count_matrix(self, regions, normalize=True):
-        rows = {}
-        for r in regions:
-            rows[r.name] = self.count(r, normalize=normalize)
-        return pandas.DataFrame(rows)
-        
+        import multiprocessing as mp
+        p = mp.Pool(mp.cpu_count())
+        rows = list(p.map(_count_regions, 
+                          ((h._path, regions) for h in self._handles)))
+        return pandas.DataFrame(rows, index=self._index)
+          
     def count(self, region, normalize=False):
         r = region
         data = numpy.array([h.summarize_region(r.chrom, r.start, r.end).mean
@@ -85,13 +94,57 @@ class BigWigSet(object):
             data /= self._global_mean
         return pandas.Series(data, index=self._index)
         
-if __name__ == "__main__":
+def entrez_gene_loci():
+    import dcaf.db
+    from itertools import groupby
+    import operator
+
+    db = dcaf.db.UCSCConnection.from_configuration()
+    q = """
+    SELECT DISTINCT chrom,txStart,txEnd,
+      CAST(knownToLocusLink.value AS INTEGER) AS geneID,'.',strand
+    FROM knownGene
+    INNER JOIN knownToLocusLink
+    ON knownGene.name=knownToLocusLink.name
+    ORDER BY chrom,geneID,txStart,txEnd
+    """
+    for name, rows in groupby(db(q), operator.itemgetter(3)):
+        prev = BED(*next(rows) + (None,))
+        for item in rows:
+            item = BED(*item + (None,))
+            if item.start <= prev.end:
+                prev = BED(prev.chrom, prev.start, item.end, 
+                           name, prev.score, prev.strand, None)
+            else:
+                yield prev
+                prev = item
+        yield prev
+
+def main():
+    import sys
     from itertools import islice
 
-    bws = BigWigSet("~/data/continuous-tracks/hg19/RNAseq/")
+    #regions = list(islice(entrez_gene_loci(), 10))
+    regions = list(entrez_gene_loci())
+    #print(_count_regions("/home/gilesc/data/RNAseq/bw/DRR001622.bw", regions))
 
-    with BEDFile("~/data/knownGene.bed.gz") as h:
-        regions = list(islice(h, 10))
+    #with BEDFile("~/data/knownGene.bed.gz") as h:
+    #    regions = list(islice(h, 10))
+
+    bws = BigWigSet("~/data/RNAseq/bw/")
     df = bws.count_matrix(regions)
-    print(df.corrwith(df.iloc[:,0]))
-    print(df)
+    #import sys
+    df.to_csv(sys.stdout, sep="\t", float_format="%0.3f")
+
+    #print(df.corrwith(df.iloc[:,0]))
+    #print(df)
+
+if __name__ == "__main__":
+    import dcaf.io
+    bws = BigWigSet("~/data/RNAseq/bw/")
+    r = BED("chr7", 13141016, 13743774, None, None, None, None)
+    v = bws.count(r, normalize=True)
+    X = dcaf.io.read_matrix("hg19.eg.mat")
+    c = X.corrwith(v)
+    c.sort(ascending=False)
+    c.to_csv("AC011288.2.cor", sep="\t")
