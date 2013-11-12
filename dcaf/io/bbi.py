@@ -1,5 +1,14 @@
 """
 BigWig and BigBED readers in pure Python.
+
+The detailed (byte-level) BigWig and BigBED specifications 
+are described in the paper:
+
+Kent WJ, Zweig AS, Barber G, Hinrichs AS, and Karolchik D.
+BigWig and BigBed: enabling browsing of large distributed datasets.
+Bioinformatics (2010) 26 (17): 2204-2207.
+
+http://bioinformatics.oxfordjournals.org/content/26/17/2204.long
 """
 import itertools
 import mmap
@@ -16,6 +25,7 @@ import numpy
 __all__ = ["BigWigFile", "BigBEDFile", "IntervalTree", "IntervalNode"]
 
 # FIXME: don't assume native endianness
+# TODO: (low priority) read from network
 
 class IntervalNode(object):
     """
@@ -492,6 +502,11 @@ class BigWigFile(BBIFile):
         return RegionSummary(length, bases_covered, sum_values, mean0, mean)
 
 class BigBEDFile(BBIFile):
+    """
+    A BigBED format file. This is essentially a BED file indexed by genomic
+    region and containing various summary statistics. 
+    """ 
+
     def __init__(self, path):
         super(BigBEDFile, self).__init__(path)
         assert(self.header.magic==0x8789F2EB)
