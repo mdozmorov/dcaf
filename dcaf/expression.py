@@ -16,8 +16,8 @@ from sklearn.preprocessing import Imputer
 import dcaf.util
 import dcaf.statistics
 
-from dcaf.db import DCAFConnection
-from dcaf.io import read_matrix
+from .db import DCAFConnection
+from .io import read_matrix
 
 def impute_expression(X):
     """
