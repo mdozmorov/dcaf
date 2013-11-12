@@ -28,7 +28,8 @@ def impute_expression(X):
 
     :param X: The expression matrix, containing NAs for missing values
     :type X: :py:class:`pandas.DataFrame`
-    :returns: An expression matrix with NAs replaced by imputed values, and with rows or columns with insufficient data for imputation removed
+    :returns: An expression matrix with NAs replaced by imputed values, 
+      and with rows or columns with insufficient data for imputation removed
     :rtype: :py:class:`pandas.DataFrame`
     """
     if not pandas.isnull(X).sum().sum():
@@ -49,7 +50,8 @@ def pearson_distance(X, Y=None):
     :type X: :py:class:`pandas.DataFrame`
     :param Y: The second matrix
     :type Y: :py:class:`pandas.DataFrame`
-    :returns: A generator yielding an element for each row in X describing the Pearson distance between that row and each row in Y 
+    :returns: A generator yielding an element for each row in 
+      X describing the Pearson distance between that row and each row in Y 
     :rtype: generator of :py:class:`pandas.Series`
     """
     if Y is None:
@@ -81,7 +83,8 @@ def pairwise_distance(argv):
 
     The default metric is Pearson distance. 
     """
-    # FIXME: Implement other distance metrics. See: http://gedas.bizhat.com/dist.htm
+    # FIXME: Implement other distance metrics. 
+    #   See: http://gedas.bizhat.com/dist.htm
     # FIXME: Implement -n for files.
 
     parser = argparse.ArgumentParser(

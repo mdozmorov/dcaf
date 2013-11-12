@@ -1,3 +1,4 @@
+import bz2
 import codecs
 import gzip
 import hashlib
@@ -5,12 +6,80 @@ import locale
 import os
 import shutil
 import urllib.request
+import urllib.parse
 
 import pandas
 
 import dcaf
 
-__all__ = ["download", "data", "read_matrix"]
+__all__ = ["generic_open", "download", 
+           "data", "read_matrix", "ClosingMixin"]
+
+class ClosingMixin(object):
+    """
+    Inherit from this mixin class to make a file-like
+    object close upon exiting a 'with statement' block.
+
+    Basically does the same thing as :py:function:`contextlib.closing`,
+    except via inheritance.
+    """
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        try:
+            self.close()
+        except:
+            pass
+    
+    def close(self):
+        raise NotImplementedError
+
+def _is_url(path):
+    """
+    Guess whether this path is a URL.
+    """
+    parse = urllib.parse.urlparse(path)
+    return all([parse.netloc,
+                parse.scheme in ["http", "https", "ftp"]])
+
+def generic_open(path, mode="rt"):
+    """
+    Open a file path, bzip2- or gzip-compressed file path, 
+    or URL in the specified mode.
+
+    Not all path types support all modes. For example, a URL is not
+    considered to be writable. 
+    
+    :param path: Path or URL
+    :type path: str
+    :throws IOError: If the file cannot be opened in the given mode
+    :throws FileNotFoundError: If the file cannot be found
+    :rtype: :py:class:`io.IOBase` or :py:class:`io.TextIOBase`, 
+      depending on the mode
+    """
+    # FIXME: detect zipped file based on magic number, not extension
+    # FIXME: enable opening zipped file in text mode
+    # FIXME: detect and unzip a zipped URL 
+    # TODO: merge this and download (provide a cache_dir parameter or
+    #   config setting)
+
+    if _is_url(path):
+        if "w" in mode:
+            raise IOError("Cannot write to URL: '%s'")
+        h = urllib.request.urlopen(path)
+    else:
+        h = open(path, mode)
+    if path.endswith(".gz"):
+        if not "b" in mode:
+            raise IOError("Can't open zipped file in text mode (known bug).")
+        h = gzip.GzipFile(fileobj=h)
+    elif path.endswith(".bz2"):
+        if not "b" in mode:
+            raise IOError("Can't open zipped file in text mode (known bug).")
+        h = bz2.BZ2File(h, mode=mode)
+    return h
 
 def download(url, return_path=False,
              text_mode=True, cache=True, cache_dir="/tmp/dcaf"):
@@ -67,3 +136,8 @@ def read_matrix(path):
     M.index = map(str, M.index)
     M.columns = map(str, M.columns)
     return M
+
+if __name__ == "__main__":
+    with generic_open("http://google.com/") as h:
+        for line in h:
+            print(line)
