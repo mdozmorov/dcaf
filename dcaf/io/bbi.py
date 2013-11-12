@@ -262,16 +262,20 @@ class BBIFile(object):
         self._map.seek(self.header.fullDataOffset)
         self.dataCount = int.from_bytes(self._map.read(4), byteorder="little")
         
-        # Read index sections from RTree and cache them in an Interval Tree
-        self._leaves = IntervalTree()
-        for leaf in RTree(self._map, self.header.fullIndexOffset):
-            for contig_id in range(leaf.startChromIx, leaf.endChromIx+1):
-                start = leaf.startBase if (contig_id == leaf.startChromIx) else 0
-                end = leaf.endBase if (contig_id == leaf.endChromIx) \
-                      else self._contig_by_id[contig_id].size
-                self._leaves.add(contig_id, start, end, leaf)
-        self._leaves.build()
-                                        
+    @property
+    def _leaves(self):
+        if not hasattr(self, "__leaves"):
+            # Read index sections from RTree and cache them in an Interval Tree
+            self.__leaves = IntervalTree()
+            for leaf in RTree(self._map, self.header.fullIndexOffset):
+                for contig_id in range(leaf.startChromIx, leaf.endChromIx+1):
+                    start = leaf.startBase if (contig_id == leaf.startChromIx) else 0
+                    end = leaf.endBase if (contig_id == leaf.endChromIx) \
+                          else self._contig_by_id[contig_id].size
+                    self.__leaves.add(contig_id, start, end, leaf)
+            self.__leaves.build()
+        return self.__leaves
+
     def __del__(self):
         try:
             self._map.close()
@@ -470,14 +474,16 @@ class BigWigFile(BBIFile):
         for leaf in self._search_index(contig_id, start, end):
             regions = self._search_leaf_internal(leaf, contig_id, start, end)
 
-            # Truncate edge regions so that only the overlapping
-            # segments are considered
-            regions["start"][0] = max(regions["start"][0], start)
-            regions["end"][-1] = min(regions["end"][-1], end)
+            if len(regions):
+                # Truncate edge regions so that only the overlapping
+                # segments are considered
+                regions["start"][0] = max(regions["start"][0], start)
+                regions["end"][-1] = min(regions["end"][-1], end)
 
-            lengths = regions["end"] - regions["start"]
-            sum_values += (lengths * regions["value"]).sum()
-            bases_covered += lengths.sum()
+                lengths = regions["end"] - regions["start"]
+                sum_values += (lengths * regions["value"]).sum()
+                bases_covered += lengths.sum()
+
         if sum_values == 0:
             mean0, mean = 0, 0
         else:
