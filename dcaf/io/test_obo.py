@@ -5,7 +5,8 @@ def test_go():
     with dcaf.io.download(url) as h:
         obo = dcaf.io.OBOFile(h)
         for term in obo:
-            if term.id == "GO:2001070":
-                assert(term.name=="starch binding")
-                assert("GO:0030247" in term.is_a)
+            if term.id == "GO:0000001":
+                assert term.name=="mitochondrion inheritance"
+                assert "GO:0048308" in term.is_a
+                assert "GO:0048311" in term.is_a
                 return
