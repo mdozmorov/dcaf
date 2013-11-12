@@ -1,16 +1,32 @@
 """
 An API for SQL databases containing various genomic data.
 
-The core of this module are various subclasses of the Connection class,
-which serve as thin wrappers around (actually, proxies of) simple DB-API
-connections to various SQL databases. 
+This module contains utilities to build and query a database
+containing:
+
+* Expression profiles from GEO 
+* Text articles from PubMed/MEDLINE
+* Metadata from Entrez Gene and RefSeq
+
+Implementation details
+~~~~~~~~~~~~~~~~~~~~~~
+
+The core classes in this module are various subclasses of the
+Connection class, which serve as thin wrappers around (actually,
+proxies of) simple DB-API connections to various SQL databases.
 
 Additionally, however, each Connection class implements extra methods
 to query data from the given database and return results in an appropriate
 formats; for example, expression datasets from the DCAFConnection will
 return a pandas DataFrame, and datasets from UCSC will be returned as
 genomic region objects. 
+
+.. todo::
+    * Add expression profiles from SRA
+    * Various genomic feature tables from UCSC
+    * Genomic coordinates for genes
 """
+
 import io
 import tarfile
 import sys

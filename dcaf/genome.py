@@ -1,8 +1,6 @@
 """ 
 Generic manipulation of genomic intervals.
 
-.. moduleauthor:: Cory Giles <mail@corygil.es>
-
 Manipulate genomic interval sets generically. Similar in concept
 to pybedtools, except it operates in memory whenever possible rather
 than using tempfiles and subprocesses, and it works in Python 3. 

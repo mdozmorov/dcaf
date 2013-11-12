@@ -1,3 +1,7 @@
+"""
+Parser for MEDLINE XML files.
+"""
+
 def import_medline():
     import gzip
     import dcaf.io

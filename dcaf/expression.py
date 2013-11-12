@@ -1,19 +1,43 @@
 """
 Manipulate transcript expression data.
-"""
-import argparse
-import sys
+
+In this module, a "matrix" or "expression matrix" is a
+:py:class:`pandas.DataFrame` which contains transcripts as columns and
+experiments as rows. 
+""" 
+
+import argparse 
+import sys 
 import numpy
 import pandas
 
 from sklearn.preprocessing import Imputer
 
 import dcaf.util
+import dcaf.statistics
 
 from dcaf.db import DCAFConnection
 from dcaf.io import read_matrix
 
-standardize = lambda X: X.apply(lambda x: (x - x.mean()) / x.std(), axis=1)
+def impute_expression(X):
+    """
+    Impute the value of missing genes to be the mean expression of that gene
+    across all experiments.
+    
+    Also drops experiments and genes with no data.
+
+    :param X: The expression matrix, containing NAs for missing values
+    :type X: :py:class:`pandas.DataFrame`
+    :returns: An expression matrix with NAs replaced by imputed values, and with rows or columns with insufficient data for imputation removed
+    :rtype: :py:class:`pandas.DataFrame`
+    """
+    if not pandas.isnull(X).sum().sum():
+        return X
+    X = X.dropna(axis=(0,1), how="all")
+    model = Imputer(axis=1, strategy="mean")
+    return DataFrame(model.fit_transform(X),
+                     index=X.index,
+                     columns=X.columns)
 
 def pearson_distance(X, Y=None): 
     """
@@ -25,6 +49,7 @@ def pearson_distance(X, Y=None):
     :type X: :py:class:`pandas.DataFrame`
     :param Y: The second matrix
     :type Y: :py:class:`pandas.DataFrame`
+    :returns: A generator yielding an element for each row in X describing the Pearson distance between that row and each row in Y 
     :rtype: generator of :py:class:`pandas.Series`
     """
     if Y is None:
@@ -36,8 +61,6 @@ def pearson_distance(X, Y=None):
     for i in X.index:
         dist = 1 - numpy.dot(Y, X.ix[i,:])
         yield pandas.Series(dist, index=Y.index)
-    #D = 1 - (numpy.dot(standardize(X), standardize(Y).T) / n)
-    #return pandas.DataFrame(D, index=X.index, columns=Y.index)
 
 @dcaf.util.entry_point
 def pairwise_distance(argv):
@@ -96,11 +119,11 @@ def pairwise_distance(argv):
     if args.taxon_id:
         db = DCAFConnection.from_configuration()
         X,_ = db.expression(taxon_id=args.taxon_id, limit=args.n_samples, shuffle=True)
-        X = prepare(X.T)
+        X = impute_expression(X).T
     else:
-        X = prepare(read_matrix(args.x))
+        X = impute_expression(read_matrix(args.x)).T
 
-    Y = prepare(read_matrix(args.y) if (args.x and args.y) else X)
+    Y = impute_expression(read_matrix(args.y) if (args.x and args.y) else X)
 
     if not numpy.array(X.columns == Y.columns).all():
         raise Exception("All column IDs must match.")
