@@ -7,10 +7,11 @@ outputting a summary in tab-delimited format.
 import argparse
 import io
 import os
-import pandas
 import re
 import sys
 import zipfile
+
+import pandas
 
 def process_fastqc(path, detailed=False):
     archive = zipfile.ZipFile(path)

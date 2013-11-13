@@ -1,7 +1,20 @@
-import pandas
+import os
 
-from ..db import DCAFConnection
-from ..util import coo_to_df
+import pandas
+import numpy
+import pandas
+import sklearn.decomposition
+
+from sklearn.cross_validation import KFold, cross_val_score
+from sklearn.pipeline import Pipeline
+from sklearn.metrics import log_loss
+from sklearn.multiclass import OneVsRestClassifier
+from sklearn.svm import SVC
+
+from dcaf.db import DCAFConnection
+from dcaf.expression import impute_expression
+from dcaf.statistics import standardize
+from dcaf.util import coo_to_df
 
 URSA_MEAN = 7.32
 URSA_STDEV = 2.63
@@ -41,9 +54,9 @@ def tissue_expression_training_set(taxon_id=9606, limit=100):
     return X,T
 
 
-def infer_tissue(X):
+def ursa_infer_tissue(X):
     """
-    Infer tissue for sample(s). The columns should be gene symbols.
+    Infer tissue for sample(s) using URSA. The columns should be gene symbols.
     """
     if X.columns.dtype != 'O':
         raise Exception("The expression matrix columns are not object types, implying they do not contain gene symbols. Gene symbols are required for tissue imputation.")
@@ -59,7 +72,7 @@ def infer_tissue(X):
         T = pandas.io.parsers.read_csv(p.stdout, skiprows=(6*X.shape[0] + 1),
                                        sep="\t", index_col=0, header=False,
                                        names=X.index)
-    c.execute("""
+    c = db("""
     SELECT translate(term.name, ' ', '_'), term.id
     FROM term
     INNER JOIN ontology
@@ -71,12 +84,30 @@ def infer_tissue(X):
     T.columns.name = "Sample ID"
     return T
 
-if __name__ == "__main__":
-    #X, T = tissue_expression_training_set(limit=100000)
-    #X.to_pickle("scratch/X.pkl")
-    #T.to_pickle("scratch/T.pkl")
+# TODO: implement generic disk-based memoization
+def load_training_set():
+    if not os.path.exists("scratch/X.pkl"):
+        X, T = tissue_expression_training_set(limit=100000)
+        X.to_pickle("scratch/X.pkl")
+        T.to_pickle("scratch/T.pkl")
+    else:
+        X = pandas.read_pickle("scratch/X.pkl")
+        T = pandas.read_pickle("scratch/T.pkl")
+    return X,T
 
-    X = pandas.read_pickle("scratch/X.pkl")
-    T = pandas.read_pickle("scratch/T.pkl")
-    print(X)
-    pass
+def multilabel_cv(X,Y):
+    Y = Y.ix[:,Y.sum() > 10]
+
+    pca = sklearn.decomposition.PCA(5)
+    inner = SVC(probability=True)
+    ovr = OneVsRestClassifier(inner)
+    model = Pipeline(steps=[('pca', pca), ('ovr', ovr)])
+ 
+    # List of score strings:
+    # http://scikit-learn.org/stable/modules/model_evaluation.html#model-evaluation
+    score = "log_loss"
+    return cross_val_score(model, X, y=Y.to_dense().fillna(0).astype(int),
+                           scoring=score, verbose=True)
+
+if __name__ == "__main__":
+    main()
