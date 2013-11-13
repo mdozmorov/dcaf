@@ -17,4 +17,4 @@ def standardize(X):
     :returns: The standardized matrix
     :rtype: :py:class:`pandas.DataFrame`
     """
-    return X.apply(lambda x: (x - x.mean()) / x.std(), axis=1)
+    return (X - X.mean(axis=0, skipna=True)) / X.std(axis=0, skipna=True)

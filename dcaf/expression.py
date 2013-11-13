@@ -34,11 +34,11 @@ def impute_expression(X):
     """
     if not pandas.isnull(X).sum().sum():
         return X
-    X = X.dropna(axis=(0,1), how="all")
+    X = X.dropna(axis=0, how="all").dropna(axis=1, how="all")
     model = Imputer(axis=1, strategy="mean")
-    return DataFrame(model.fit_transform(X),
-                     index=X.index,
-                     columns=X.columns)
+    return pandas.DataFrame(model.fit_transform(X),
+                            index=X.index,
+                            columns=X.columns)
 
 def pearson_distance(X, Y=None): 
     """

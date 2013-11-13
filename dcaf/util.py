@@ -1,8 +1,7 @@
 """
 Utility functions.
-
-.. moduleauthor:: Cory Giles <mail@corygil.es>
 """
+import collections
 import configparser
 import functools
 import itertools
@@ -10,6 +9,8 @@ import locale
 import os
 import subprocess
 import sys
+
+import pandas
 
 import dcaf
 import dcaf.io
@@ -94,10 +95,10 @@ def coo_to_df(triplets):
     """
     Create a SparseDataFrame from a sequence of (row,col,value) triplets.
     """
-    data = defaultdict(dict)
+    data = collections.defaultdict(dict)
     for row, col, val in triplets:
         data[col][row] = val
-    return SparseDataFrame(data)
+    return pandas.SparseDataFrame(data)
 
 class ConfigurationNotFound(Exception):
     def __init__(self):

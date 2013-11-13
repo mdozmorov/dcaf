@@ -1,8 +1,14 @@
+import pandas
+
+from ..db import DCAFConnection
+from ..util import coo_to_df
+
 URSA_MEAN = 7.32
 URSA_STDEV = 2.63
 
-def tissue_expression_training_set(taxon_id=9606, limit=200):
-    c.execute("""
+def tissue_expression_training_set(taxon_id=9606, limit=100):
+    db = DCAFConnection.from_configuration()
+    c = db("""
     SELECT sample_term.sample_id, expression.data, 
         sample_term.term_id, sample_term.probability
     FROM sample_term
@@ -22,15 +28,16 @@ def tissue_expression_training_set(taxon_id=9606, limit=200):
     AND sample_term.probability=1
     AND taxon.id=%s
     ORDER BY random()
-    LIMIT %s""", (taxon_id, limit))
+    LIMIT %s""", taxon_id, limit)
     samples, data, tissues, values = zip(*c)
     T = coo_to_df(zip(samples, tissues, values))
     T.index.name = "Sample ID"
     T.columns.name = "Term ID"
     c.execute("""SELECT id FROM gene WHERE gene.taxon_id=%s ORDER BY id""", 
               (taxon_id,))
-    X = DataFrame.from_records(list(data),
-                               index=samples, columns=[e[0] for e in c])
+    X = pandas.DataFrame.from_records(list(data),
+                                      index=samples, 
+                                      columns=[e[0] for e in c])
     return X,T
 
 
@@ -63,3 +70,13 @@ def infer_tissue(X):
     T.index.name = "Term ID"
     T.columns.name = "Sample ID"
     return T
+
+if __name__ == "__main__":
+    #X, T = tissue_expression_training_set(limit=100000)
+    #X.to_pickle("scratch/X.pkl")
+    #T.to_pickle("scratch/T.pkl")
+
+    X = pandas.read_pickle("scratch/X.pkl")
+    T = pandas.read_pickle("scratch/T.pkl")
+    print(X)
+    pass
