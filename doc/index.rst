@@ -34,6 +34,8 @@ Contents:
    :maxdepth: 3
    
    install
+   configuration
+   tutorial
    api
              
 Indices and tables
