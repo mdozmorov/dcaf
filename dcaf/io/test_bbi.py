@@ -37,14 +37,3 @@ def test_read_BigBED():
     # Region search
     assert sum(1 for _ in bb.search("chr1", 0, 1000000)) == 3
     assert sum(1 for _ in bb.search("chrX", 0, 100000000)) == 39
-
-def test_IntervalTree():
-    raise NotImplementedError
-#     itree = IntervalTree()
-#     for i, (chrom, start, end) in enumerate(read_bed("scratch/knownGene.bed")):
-#         itree.add(chrom,start,end,(chrom,start,end))
-#     itree.build()
-#     for item in itree.search("chr1", 10000,20000):
-#         print(item)
-#     for item in itree.search("chrX", 10000,200000):
-#         print(item)

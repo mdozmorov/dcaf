@@ -22,99 +22,13 @@ from struct import Struct, unpack
 
 import numpy
 
-__all__ = ["BigWigFile", "BigBEDFile", "IntervalTree", "IntervalNode"]
+from dcaf.genome import GenomicRegionRAMIndex
+
+__all__ = ["BigWigFile", "BigBEDFile"]
 
 # FIXME: don't assume native endianness
 # TODO: (low priority) read from network
 
-class IntervalNode(object):
-    """
-    A RAM-based index for (generic) intervals.
-    
-    This is a simple augmented binary search tree as described
-    in CLRS 2001.
-    """
-
-    __slots__ = ["_start", "_end", "_data", "_left", "_right", "_max_end"]
-
-    def __init__(self, intervals):
-        midpoint = int(len(intervals) / 2)
-        start, end, data = intervals[midpoint]
-        self._start = start
-        self._end = end
-        self._data = data
-        self._left = None
-        self._right = None
-        self._max_end = self._end
-        if midpoint > 0:
-            self._left = IntervalNode(intervals[:midpoint])
-            self._max_end = max(self._end, self._left._max_end)
-        if midpoint < len(intervals) - 1:
-            self._right = IntervalNode(intervals[midpoint+1:])
-            self._max_end = max(self._end, self._right._max_end)
-
-    def search(self, start, end):
-        if start > self._max_end:
-            return
-        if self._left:
-            yield from self._left.search(start, end)
-        if (start < self._end) and (end > self._start):
-            yield self._data
-        if end < self._start:
-            return
-        if self._right:
-            yield from self._right.search(start, end)
-    
-    def __iter__(self):
-        if self._left:
-            yield from self._left
-        yield self._data
-        if self._right:
-            yield from self._right
-
-class IntervalTree(object):
-    """
-    A RAM-based index for genomic regions on multiple chromosomes.
-    """
-    def __init__(self):
-        self._intervals = {}
-        self._roots = {}
-        self._built = False
-
-    def add(self, chrom, start, end, data=None):
-        """
-        Add another interval to the tree. This method can only be
-        called if the IntervalTree has not been built yet.
-        """
-        if self._built:
-            raise Exception("Can't currently mutate a constructed IntervalTree.")
-        self._intervals.setdefault(chrom, [])
-        self._intervals[chrom].append((start, end, data))
-    
-    def build(self):
-        """
-        Build the IntervalTree. After this method is called, new intervals
-        cannot be added to the tree.
-        """
-        assert(self._intervals)
-        for chrom, intervals in self._intervals.items():
-            intervals.sort()
-            self._roots[chrom] = IntervalNode(intervals)
-        self._built = True
-    
-    def search(self, chrom, start, end):
-        """
-        Search the IntervalTree for intervals overlapping the given chrom, start, and end.
-        """
-        if not self._built:
-            raise Exception("Must call IntervalTree.build() before using search()")
-        return self._roots[chrom].search(start, end)
-    
-    def __iter__(self):
-        assert(self._built)
-        for chrom, node in self._roots.items():
-            yield from node
- 
 def defstruct(name, format, fields):
     cls = namedtuple(name, fields)
     cls._struct = Struct(format)
@@ -276,7 +190,7 @@ class BBIFile(object):
     def _leaves(self):
         if not hasattr(self, "__leaves"):
             # Read index sections from RTree and cache them in an Interval Tree
-            self.__leaves = IntervalTree()
+            self.__leaves = GenomicRegionRAMIndex()
             for leaf in RTree(self._map, self.header.fullIndexOffset):
                 for contig_id in range(leaf.startChromIx, leaf.endChromIx+1):
                     start = leaf.startBase if (contig_id == leaf.startChromIx) else 0
