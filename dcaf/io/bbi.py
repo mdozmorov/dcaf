@@ -10,6 +10,7 @@ Bioinformatics (2010) 26 (17): 2204-2207.
 
 http://bioinformatics.oxfordjournals.org/content/26/17/2204.long
 """
+
 import itertools
 import mmap
 import operator

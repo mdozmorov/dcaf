@@ -6,6 +6,7 @@ import pandas
 import sklearn.decomposition
 
 from sklearn.cross_validation import KFold, cross_val_score
+from sklearn.preprocessing import StandardScaler, Imputer
 from sklearn.pipeline import Pipeline
 from sklearn.metrics import log_loss
 from sklearn.multiclass import OneVsRestClassifier
@@ -96,12 +97,17 @@ def load_training_set():
     return X,T
 
 def multilabel_cv(X,Y):
-    Y = Y.ix[:,Y.sum() > 10]
+    Y = Y.ix[:,Y.sum() > 5]
 
     pca = sklearn.decomposition.PCA(5)
     inner = SVC(probability=True)
     ovr = OneVsRestClassifier(inner)
-    model = Pipeline(steps=[('pca', pca), ('ovr', ovr)])
+    model = Pipeline(steps=[
+        ('scale', StandardScaler()),
+        ('impute', Imputer(axis=0)),
+        ('pca', pca), 
+        ('ovr', ovr)
+    ])
  
     # List of score strings:
     # http://scikit-learn.org/stable/modules/model_evaluation.html#model-evaluation
