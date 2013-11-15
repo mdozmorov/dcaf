@@ -14,7 +14,6 @@ from sklearn.svm import SVC
 
 from dcaf.db import DCAFConnection
 from dcaf.expression import impute_expression
-from dcaf.statistics import standardize
 from dcaf.util import coo_to_df
 
 URSA_MEAN = 7.32
@@ -85,6 +84,15 @@ def ursa_infer_tissue(X):
     T.columns.name = "Sample ID"
     return T
 
+def bto_term_names():
+    db = DCAFConnection.from_configuration()
+    return dict(db("""
+    SELECT term.id, term.name 
+    FROM term
+    INNER JOIN ontology
+    ON term.ontology_id=ontology.id
+    WHERE ontology.namespace='BTO'"""))
+
 # TODO: implement generic disk-based memoization
 def load_training_set():
     if not os.path.exists("scratch/X.pkl"):
@@ -94,6 +102,9 @@ def load_training_set():
     else:
         X = pandas.read_pickle("scratch/X.pkl")
         T = pandas.read_pickle("scratch/T.pkl")
+    
+    names = bto_term_names()
+    T.columns = [names[id] for id in T.columns]
     return X,T
 
 def default_multilabel_pipeline():
@@ -129,14 +140,14 @@ def multilabel_cv(X,Y):
     return cross_val_score(model, X, y=Y.to_dense().fillna(0).astype(int),
                            scoring=score, verbose=True)
 
-def bto_term_names():
+def plot_age_histogram():
     db = DCAFConnection.from_configuration()
-    return dict(db("""
-    SELECT term.id, term.name 
-    FROM term
-    INNER JOIN ontology
-    ON term.ontology_id=ontology.id
-    WHERE ontology.namespace='BTO'"""))
+    ages = numpy.array([r[0] for r in db("SELECT sample.age FROM sample WHERE sample is NOT NULL")])
+    import matplotlib.pyplot as plt
+    n, bins, patches = plt.hist(ages, range=(5,120), bins=20)
+    plt.title("GEO Age distribution (human)")
+    plt.ylabel("Frequency")
+    plt.xlabel("Age (years)")
 
 if __name__ == "__main__":
     main()
