@@ -96,9 +96,7 @@ def load_training_set():
         T = pandas.read_pickle("scratch/T.pkl")
     return X,T
 
-def multilabel_cv(X,Y):
-    Y = Y.ix[:,Y.sum() > 5]
-
+def default_multilabel_pipeline():
     pca = sklearn.decomposition.PCA(5)
     inner = SVC(probability=True)
     ovr = OneVsRestClassifier(inner)
@@ -108,12 +106,37 @@ def multilabel_cv(X,Y):
         ('pca', pca), 
         ('ovr', ovr)
     ])
- 
+    return model
+
+class MultilabelClassifier(object):
+    """
+    A convenience wrapper for multilabel classification allowing
+    input and output of `:py:class:pandas.DataFrame` objects.
+    """
+    def __init__(self, pipeline=default_multilabel_pipeline()):
+        self._pipeline = pipeline
+
+    def fit(self, X, y):
+        pass
+
+def multilabel_cv(X,Y):
+    Y = Y.ix[:,Y.sum() > 5]
+    model = multilabel_pipeline()
+
     # List of score strings:
     # http://scikit-learn.org/stable/modules/model_evaluation.html#model-evaluation
     score = "log_loss"
     return cross_val_score(model, X, y=Y.to_dense().fillna(0).astype(int),
                            scoring=score, verbose=True)
+
+def bto_term_names():
+    db = DCAFConnection.from_configuration()
+    return dict(db("""
+    SELECT term.id, term.name 
+    FROM term
+    INNER JOIN ontology
+    ON term.ontology_id=ontology.id
+    WHERE ontology.namespace='BTO'"""))
 
 if __name__ == "__main__":
     main()
