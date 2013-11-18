@@ -1,9 +1,35 @@
+"""
+An API for SQL databases containing various genomic data.
+
+This module contains utilities to build and query a database
+containing:
+
+* Expression profiles from GEO 
+* Text articles from PubMed/MEDLINE
+* Metadata from Entrez Gene and RefSeq
+
+.. todo::
+    * Add expression profiles from SRA
+    * Various genomic feature tables from UCSC
+    * Genomic coordinates for genes
+"""
+
+import logging
+import os
+
 from sqlalchemy import create_engine, Column, Integer, \
     String, ForeignKey, Float, Date
 from sqlalchemy.orm import relationship
 from sqlalchemy.schema import CheckConstraint, UniqueConstraint
 from sqlalchemy.ext.declarative import as_declarative, declared_attr
 from sqlalchemy.dialects.postgresql import INT8RANGE, ARRAY
+
+from dcaf.io.medline import MedlineXMLFile
+
+logging.basicConfig(level=logging.DEBUG,
+                    format="%(asctime)s\t%(name)-12s\t%(levelname)-8s\t%(message)s",
+                    datefmt="%m-%d %H:%M:%S")
+log = logging.getLogger("dcaf.db")
 
 def FK(column, index=True, nullable=False):
     return Column(Integer, ForeignKey(column, ondelete="CASCADE"),
@@ -133,6 +159,10 @@ class Article(Base):
     abstract = Column(String)
     full_text = Column(String)
 
+###########################
+# Database import functions
+###########################
+
 NCBI_BASE = "ftp://ftp.ncbi.nlm.nih.gov"
 
 import dcaf.io
@@ -140,10 +170,12 @@ from plumbum.cmd import tar, grep, cut, zcat, awk, sed, head
 
 # Use autocommit?
 
-def initialize(session):
+def initialize_db(session):
+    log.info("Initializing DCAF database...")
     raw_db = session.connection().engine.raw_connection().connection
 
     # Add some built-in terms
+    log.info("Adding core ontology terms...")
     session.add(Ontology(id=0, namespace="CORE",
                          description="Core relations inherent to OBO format."))
     session.add(Term(id=0, ontology_id=0, name="is_a"))
@@ -151,6 +183,7 @@ def initialize(session):
     session.commit()
 
     # Load NCBI taxa into 'taxon' table
+    log.info("Loading NCBI taxa ...")
     url = NCBI_BASE + "/pub/taxonomy/taxdump.tar.gz"
     path = dcaf.io.download(url, return_path=True)
 
@@ -160,6 +193,7 @@ def initialize(session):
     raw_db.commit()
 
     # Load Entrez Gene IDs, names, symbols, etc, into 'gene'
+    log.info("Loading NCBI Entrez Gene data ...")
     path = dcaf.io.download(NCBI_BASE + "/gene/DATA/gene_info.gz", 
                             return_path=True)
     c = raw_db.cursor()
@@ -227,19 +261,28 @@ def import_medline(session, folder):
     for file in os.listdir(folder):
         if file.endswith(".xml.gz"):
             path = os.path.join(folder, file)
+            log.info("Importing MEDLINE articles from: %s" % path)
             with MedlineXMLFile(path) as handle:
                 for article in handle:
-                    if article.journal.id not in journal_ids:
+                    journal = article.journal
+                    if journal.id not in journal_ids:
                         session.add(Journal(
                             id=journal.id,
                             issn=journal.issn, 
                             title=journal.name))
-                        journal_ids
+                        journal_ids.add(journal.id)
 
+                    session.add(Article(
+                        journal_id=journal.id,
+                        id=article.id,
+                        publication_date=article.publication_date,
+                        title=article.title,
+                        abstract=article.abstract))
+    session.commit()
+                                
                     
-
 if __name__ == "__main__":
-    engine = create_engine("postgresql+psycopg2://localhost/testdb")
+    engine = create_engine("postgresql+psycopg2://wrendb/dcaf")
     db = engine.connect()
     Base.metadata.create_all(engine)
 
@@ -247,9 +290,10 @@ if __name__ == "__main__":
     Session = sessionmaker(bind=engine)
 
     session = Session()
-    #initialize(session)
+    #import_medline(session, "/home/gilesc/data/text/")
+    #initialize_db(session)
 
     #with open(dcaf.io.data("brenda.obo")) as h:
     #    import_obo(session, h, "BTO", "Brenda Tissue Ontology")
 
-    import_soft(session, "/home/gilesc/data/GEO/GPL96_family.soft.gz")
+    #import_soft(session, "/home/gilesc/data/GEO/GPL96_family.soft.gz")

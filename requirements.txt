@@ -15,6 +15,7 @@ numexpr
 bottleneck
 
 # Database access
+sqlalchemy
 mysql-connector-python
 psycopg2
 
