@@ -24,7 +24,8 @@ from dcaf.io import generic_open as open, ClosingMixin
 
 __all__ = ["MedlineXMLFile", "Article", "Journal"]
 
-Article = namedtuple("Article", "id title abstract publication_date journal")
+Article = namedtuple("Article", 
+                     "id title abstract publication_date journal")
 Journal = namedtuple("Journal", "id issn name")
 
 class MedlineXMLFile(ClosingMixin):
@@ -71,7 +72,7 @@ class MedlineXMLFile(ClosingMixin):
         journal_name = self._text(".//MedlineJournalInfo/MedlineTA")
         journal = Journal(journal_id, journal_issn, journal_name)
 
-        return (pmid, title, abstract, publication_date, journal)
+        return Article(pmid, title, abstract, publication_date, journal)
 
     def __iter__(self):
         for event, element in ET.iterparse(self._handle):

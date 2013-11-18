@@ -7,9 +7,6 @@ import re
 import pandas
 import numpy
 
-ExpressionSet = collections.namedtuple("ExpressionSet",
-                                       "phenotype_data,feature_data,expression")
-
 def as_float(item):
     try:
         return float(item)
@@ -46,32 +43,40 @@ class SOFTParser(object):
     def __init__(self, path):
         self._handle = gzip.open(path)
         self._lines = self._read_lines()
-        self._read_until("!platform_table_begin")
-        self.feature_data = self._read_table("!platform_table_end")
 
-        expression = {}
-        properties = {}
+        while True:
+            line = self._lines.__next__().strip()
+            if line.startswith("!platform_table_begin"):
+                break
+            elif line.startswith("!Platform_taxid"):
+                self._taxon_id = int(self._read_value(line))
+            elif line.startswith("!Platform_geo_accession"):
+                self._platform_accession = self._read_value(line)
 
-        for sample in self:
-            print(sample.id)
-            # Try to parse basic sample attributes, like age, gender, etc.
-            p = {}
-            for ch in sample.characteristics:
-                age_match = re.match("^age: ([0-9]+\.*[0-9]*)", ch)
-                if age_match:
-                    p["age"] = float(age_match.group(1))
-                if ch.startswith("gender:") or ch.startswith("sex:"):
-                    if "M" in ch or "male" in ch.lower():
-                        p["gender"] = "M"
-                    elif "F" in ch or "female" in ch.lower():
-                        p["gender"] = "F"
-            if p:
-                expression[sample.id] = sample.expression
-                properties[sample.id] = pandas.Series(p)
+        platform = self._read_table("!platform_table_end")
 
-        self.expression = pandas.DataFrame(expression).T
-        self.phenotype_data = pandas.DataFrame(properties).T
-        self.phenotype_data["age"] = self.phenotype_data["age"].astype("float64")
+        if "Entrez_Gene_ID" in platform.columns:
+            columns = list(platform.columns)
+            columns[columns.index("Entrez_Gene_ID")] = "ENTREZ_GENE_ID"
+            platform.columns = columns
+
+        if "GENE" in platform.columns:
+            columns = list(platform.columns)
+            columns[columns.index("GENE")] = "ENTREZ_GENE_ID"
+            platform.columns = columns
+
+        if not "ENTREZ_GENE_ID" in platform.columns: 
+            raise Exception("Cannot handle this platform as there is \
+            no mapping of probes to Entrez Gene IDs.")
+
+        self._probe_to_gene = {}
+        for probe, gene in zip(platform["ID"], platform["ENTREZ_GENE_ID"]):
+            # Take only probes that map to exactly one gene
+            # Those that don't will have '///' in the name
+            try:
+                self._probe_to_gene[probe] = int(gene)
+            except ValueError:
+                continue
 
     def _read_lines(self):
         for line in self._handle:
@@ -100,27 +105,42 @@ class SOFTParser(object):
 
     def __iter__(self):
         """Iterate through the Sample objects in this SOFT file."""
-        sample_id = None
-        characteristics = []
+        #sample = {"accession" : sample_accession}
+        sample = {}
         for line in self._lines:
-            if line.startswith("^SAMPLE"):
-                sample_id = line.strip().split()[2]
-            elif line.startswith("!Sample_characteristics_ch1"):
-                characteristics.append(self._read_value(line))
+            if line.startswith("!Sample"):
+                try:
+                    key, value = line.strip().split(" = ", 1)
+                    key = key.replace("!Sample_", "")
+                    if key == "characteristics_ch1":
+                        sample.setdefault("characteristics",[])
+                        sample["characteristics"].append(value)
+                    elif key == "title":
+                        sample["title"] = value
+                    elif key == "description":
+                        sample.setdefault("description", [])
+                        sample["description"].append(value)
+                    elif key == "channel_count":
+                        sample["channel_count"] = int(value)
+                    elif key == "molecule_ch1":
+                        sample["molecule"] = value
+                    elif key == "source_name_ch1":
+                        sample["source"] = value
+                except Exception as e:
+                    continue
             elif line.startswith("!sample_table_begin"):
                 try:
-                    expression = self._read_table("!sample_table_end")
-                    #expression_vector = expression["VALUE"]
-                    #expression_vector.index = expression["ID_REF"]
-                    expression_vector = pandas.Series([as_float(item) for item in expression["VALUE"]],
-                                                      index=expression["ID_REF"])
-                    yield Sample(sample_id, expression_vector, characteristics=characteristics)
-                    sample_id = None
-                    characteristics = []
+                    expression = read_table(self._lines, "!sample_table_end")
+                    expression_vector = pandas.Series(
+                        [as_float(item) for item in expression["VALUE"]],
+                        index=expression["ID_REF"]).groupby(self._probe_to_gene)\
+                                              .max()
+                    sample["expression"] = expression_vector
+                    yield sample
                 except Exception as e:
                     print(e)
                     continue
-
+ 
 def parseSOFT(path):
    parser = SOFTParser(path) 
    return ExpressionSet(parser.phenotype_data,
