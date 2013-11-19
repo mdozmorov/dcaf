@@ -105,10 +105,12 @@ class SOFTParser(object):
 
     def __iter__(self):
         """Iterate through the Sample objects in this SOFT file."""
-        #sample = {"accession" : sample_accession}
         sample = {}
         for line in self._lines:
-            if line.startswith("!Sample"):
+            if line.startswith("^SAMPLE"):
+                    key, value = line.strip().split(" = ", 1)
+                    sample["accession"] = value
+            elif line.startswith("!Sample"):
                 try:
                     key, value = line.strip().split(" = ", 1)
                     key = key.replace("!Sample_", "")
