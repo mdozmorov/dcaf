@@ -15,6 +15,8 @@ Check if the end coordinate in a bed file is at least 1bp larger, and fixes if n
 ##  exome2.py
 ##  exportSOFT
 ##  extract.sh
+##  extract_BroadHMM.py
+Connects to MySQL database, extracts BroadHMM subgroups into separate files based on 'name' column. Does not work on python3 - MySQL module not supporrted.
 ##  fetchGOMapping
 ##  fetchGeneLoci
 ##  ftp.sh
