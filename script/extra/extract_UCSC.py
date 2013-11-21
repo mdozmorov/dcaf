@@ -1,5 +1,22 @@
 #!/usr/bin/env python2
-
+## ==================================================================
+## Get data from UCSC MySQL server, extract hg19 genomic coordinates in separate
+## files defined by 'field' column
+##
+## Usage: python extract_UCSC.py [table name] [field name] [output dir]
+##
+## Example: python extract_UCSC.py wgEncodeBroadHmmGm12878HMM histoneMarks
+## Example: python extract_UCSC.py wgEncodeRegTfbsClusteredV3 name tfbsEncode
+## Example: python extract_UCSC.py gap type gapLocations
+## Example: python extract_UCSC.py coriellDelDup cellType coriellCNVs
+## Example: python extract_UCSC.py gwasCatalog trait gwasCatalog
+## Example: python extract_UCSC.py knownAlt name altSplicing
+## Example: python extract_UCSC.py wgRna type ncRnas
+## Example: python extract_UCSC.py tfbsConsSites name tfbsConserved
+## Example: python extract_UCSC.py dgvMerged varType genomicVariants
+## Example: python extract_UCSC.py nestedRepeats repClass repeats
+## Example: python extract_UCSC.py snp138Flagged func snpClinical
+## =================================================================
 import mysql.connector
 import itertools
 import operator
@@ -12,12 +29,20 @@ class UCSCDB(object):
                 password=password, host=host, database=db)
 
     # Function to process one table at a time
-    def save_table_grouped_by_name(self, table, out_dir):
+    def save_table_grouped_by_name(self, table, tname, out_dir):
         if not os.path.exists(out_dir):
             os.makedirs(out_dir)
 
         c = self.db.cursor()
-        q = """SELECT chrom, chromStart, chromEnd, name FROM %s ORDER BY name;""" % table
+        q = """SHOW COLUMNS FROM %s;""" % table
+        c.execute(q)
+        tnamenum = 0
+        while c.fetchone()[0] != tname:
+            tnamenum += 1
+        print(tnamenum)
+        c.close() 
+        c = self.db.cursor()
+        q = """SELECT chrom, chromStart, chromEnd, name FROM %s ORDER BY %s;""" % (table, tname)
         c.execute(q)
         for grp, rows in itertools.groupby(c, operator.itemgetter(3)):
             path = os.path.join(out_dir, grp.replace("/","")+".bed")
@@ -35,11 +60,13 @@ class UCSCDB(object):
             db.save_table_grouped_by_name(table, out_dir)
 
 def main():
-    OUTDIR = sys.argv[1]
+    TABLE = sys.argv[1]
+    TNAME = sys.argv[2]
+    OUTDIR = sys.argv[3]
     db = UCSCDB('genome','','genome-mysql.cse.ucsc.edu','hg19') # UCSC connection settings
     # db = UCSCDB('genomerunner','genomerunner','wren2','hg19')
     # db.get_tables('wgEncodeBroadHmm%')
-    db.save_table_grouped_by_name('wgEncodeBroadHmmGm12878HMM', OUTDIR)
+    db.save_table_grouped_by_name(TABLE, TNAME, OUTDIR)
         
 
 
