@@ -1,27 +1,46 @@
+##################
+# General packages
+##################
+
 # Installation, compilation, testing, and documentation
 pip
 setuptools
 cython
-
-# Generic scientific packages (numpy is implied, as it is
-#   a dependency of several of these packages)
-pandas
-scipy
-networkx
-scikit-learn
-
-# Optional speedup packages for pandas
-numexpr
-bottleneck
 
 # Database access
 sqlalchemy
 mysql-connector-python
 psycopg2
 
+# File I/O
+xlrd
+
 # Miscellaneous
 termcolor
 plumbum
 
+#############################
+# Generic scientific packages 
+#############################
+# (numpy is implied, as it is a dependency of several of these packages)
+
+git+https://github.com/pydata/pandas.git
+scipy
+networkx
+
+# Optional speedup packages for pandas
+numexpr
+bottleneck
+
+# Machine learning
+scikit-learn
+
+# Statistical modeling
+patsy
+statsmodels
+
+#########################
 # Bioinformatics packages
+#########################
+
 pysam

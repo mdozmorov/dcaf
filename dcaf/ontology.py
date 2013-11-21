@@ -1,55 +1,32 @@
 import networkx as nx
 from scipy.stats import fisher_exact
 
+from .db.model import *
+from .db.model import Ontology as DBOntology
+
 class Ontology(nx.DiGraph):
-    def __init__(self, cursor, taxon_id=9606, namespace="GO"):
+    def __init__(self, session, taxon_id=9606, namespace="GO"):
         super(Ontology, self).__init__()
-        c = cursor
-        c.execute("""
-        SELECT term.id, term.accession, term.name
-        FROM term
-        INNER JOIN ontology
-        ON term.ontology_id=ontology.id
-        WHERE ontology.namespace=%s
-        """, (namespace,))
-        for id,accession,name in c:
-            self.add_node(id, accession=accession, name=name)
-        c.execute("""
-        SELECT agent,target
-        FROM term_relation
-        INNER JOIN term t1
-        ON t1.id=agent
-        INNER JOIN term t2
-        ON t2.id=target
-        INNER JOIN ontology o1
-        ON t1.ontology_id=o1.id
-        INNER JOIN ontology o2
-        ON t2.ontology_id=o2.id
-        WHERE probability=1
-        AND o1.namespace=%s
-        AND o2.namespace=%s""", (namespace, namespace))
-        self.add_edges_from(c)
-        c.execute("""
-        SELECT term_id,gene_id FROM gene_term
-        INNER JOIN term
-        ON gene_term.term_id=term.id
-        INNER JOIN ontology
-        ON term.ontology_id=ontology.id
-        INNER JOIN gene
-        ON gene_term.gene_id=gene.id
-        WHERE ontology.namespace=%s
-        AND gene.taxon_id=%s
-        """, (namespace, taxon_id))
+        o = session.query(DBOntology).filter_by(namespace=namespace)
+
+        for t in session.query(Term).join(DBOntology.terms).filter(DBOntology.namespace==namespace):
+            self.add_node(t.id, accession=t.accession, name=t.name)
+
+        # FIXME: figure out multiple joins in SQLAlchemy
+        for e in session.query(TermRelation):
+            if e.agent in self and e.target in self and e.probability == 1:
+                self.add_edge(e.agent, e.target)
 
         self._genes = set()
 
-        for term_id,gene_id in c:
-            self.add_node(term_id)
-            data = self.node[term_id]
+        for e in session.query(GeneTerm).join(Term).join(DBOntology).join(Gene)\
+            .filter(DBOntology.namespace==namespace).filter(Gene.taxon_id==taxon_id):
+            self.add_node(e.term_id)
+            data = self.node[e.term_id]
             if not "genes" in data:
                 data["genes"] = set()
-            data["genes"].add(gene_id)
-            self._genes.add(gene_id)
+            data["genes"].add(e.gene_id)
+            self._genes.add(e.gene_id)
 
     def enrichment(self, selected, background=None, cutoff=5e-2):
         if background is None:

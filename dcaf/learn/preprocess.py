@@ -4,14 +4,42 @@ Transformers and algorithms for preprocessing data for machine learning.
 Most of the classes here use the scikits-learn fit/transform API.
 """
 
+from functools import wraps
+
 import numpy
 
-__all__ = ["InvalidColumnRemover", "QuantileNormalizer"]
+from pandas import DataFrame
+from sklearn.preprocessing import StandardScaler
+
+__all__ = ["InvalidColumnRemover", "QuantileNormalizer", "Scaler"]
+
+def pandas_adapter(fn):
+    @wraps(fn)
+    def wrapped(self, *args, **kwargs):
+        if type(args[0]) is DataFrame:
+            args = list(args)
+            X = args[0]
+            args[0] = X.as_matrix()
+            rs = fn(self, *args, **kwargs)
+            if (type(rs) is numpy.ndarray) and (rs.shape==X.shape):
+                rs = DataFrame(rs, index=X.index, columns=X.columns)
+            return rs
+        return fn(self, *args, **kwargs)
+    return wrapped
 
 class SimpleTransform(object):
     def fit_transform(self, X, y=None):
         self.fit(X,y)
         return self.transform(X,y)
+
+class Scaler(StandardScaler):
+    def __init__(self, *args, **kwargs):
+        super(Scaler, self).__init__(*args, **kwargs)
+        
+    @pandas_adapter
+    def transform(self, X):
+        return super(Scaler, self).transform(X)
+        
 
 class InvalidColumnRemover(SimpleTransform):
     """
@@ -51,6 +79,7 @@ class QuantileNormalizer(SimpleTransform):
         self.coef_.sort()
         return self
         
+    @pandas_adapter
     def transform(self, X, y=None):
         if self._copy:
             X = X.copy()

@@ -10,13 +10,13 @@ import argparse
 import sys 
 import numpy
 import pandas
+import statsmodels.formula.api as sm
 
 from sklearn.preprocessing import Imputer
 
 import dcaf.util
 import dcaf.statistics
 
-from .db import DCAFConnection
 from .io import read_matrix
 
 def impute_expression(X):
@@ -150,6 +150,31 @@ def pairwise_distance(argv):
             rn = X.index[i]
             d = d.fillna(numpy.inf)
             print(rn,*(Y.index[j] for j in d.argsort()[:args.k]) , sep="\t")
+
+# IDEA: improve significance analysis by estimating gene variance from
+# expression database
+
+def aov(X, P, formula=None):
+    data = pandas.concat([X,P], axis=1)
+    rows = {}
+    formula = "Age + Diet + Age:Diet" 
+    for tx in X.columns:
+        try:
+            m = sm.ols(formula="%s ~ %s" % (tx, formula), 
+                       data=data).fit()
+            #return m
+            F_p = m.f_pvalue
+            p = m.pvalues[1:]
+            coef = m.params[1:]
+            index = [("General", "p")]
+            index.extend([(condition, "p") for condition in p.index])
+            index.extend([(condition, "coef") for condition in coef.index])
+            index = pandas.MultiIndex.from_tuples(index)
+            x = numpy.concatenate([[F_p],p,coef])
+            rows[tx] = pandas.Series(x, index=index)
+        except Exception as e:
+            pass
+    return pandas.DataFrame.from_dict(rows).T
 
 if __name__ == "__main__":
     pairwise_distance()

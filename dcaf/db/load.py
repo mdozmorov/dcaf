@@ -23,7 +23,7 @@ from plumbum.cmd import tar, grep, cut, zcat, awk, sed, head
 import dcaf.io
 
 from .model import *
-from .core import log
+from .core import log, get_session
 from ..io import MedlineXMLFile, generic_open as open
 
 NCBI_BASE = "ftp://ftp.ncbi.nlm.nih.gov"
@@ -42,7 +42,7 @@ def _import_go(session):
     Import the Gene Ontology and gene-GO annotations.
     """
     log.info("Importing the Gene Ontology")
-    #import_obo(session, GO_OBO, "GO", "Gene Ontology")
+    import_obo(session, GO_OBO, "GO", "Gene Ontology")
 
     accessions = {}
     for t in session.query(Ontology).filter_by(namespace="GO").first().terms:
@@ -114,10 +114,14 @@ def initialize_db(session):
     c.copy_from((zcat[path] | grep["-v", "^#"] | sed["1d"] \
                  | awk['$1 != 6617'] \
                  | awk['$1 != 543399'] \
-                 | awk['BEGIN { OFS="\t" } $1 != 366646 { print $2,$1,$3,$12 }'] \
+                 | awk['BEGIN { IFS="\t"; OFS="\t" } $1 != 366646 { print $2,$1,$3,$12 }'] \
              ).popen().stdout, "gene")
     raw_db.commit()
+    session.commit()
 
+    session = get_session()
+    _import_go(session)
+    _import_brenda(session)
   
 def import_obo(session, path, namespace, description):
     """
