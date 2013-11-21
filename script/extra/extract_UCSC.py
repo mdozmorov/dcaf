@@ -34,21 +34,13 @@ class UCSCDB(object):
             os.makedirs(out_dir)
 
         c = self.db.cursor()
-        q = """SHOW COLUMNS FROM %s;""" % table
+        q = """SELECT chrom, chromStart, chromEnd, name, %s FROM %s ORDER BY %s;""" % (tname, table, tname)
         c.execute(q)
-        tnamenum = 0
-        while c.fetchone()[0] != tname:
-            tnamenum += 1
-        print(tnamenum)
-        c.close() 
-        c = self.db.cursor()
-        q = """SELECT chrom, chromStart, chromEnd, name FROM %s ORDER BY %s;""" % (table, tname)
-        c.execute(q)
-        for grp, rows in itertools.groupby(c, operator.itemgetter(3)):
+        for grp, rows in itertools.groupby(c, operator.itemgetter(4)):
             path = os.path.join(out_dir, grp.replace("/","")+".bed")
             with open(path, "w") as h:
                 for row in rows:
-                    print(*row, sep="\t", file=h)
+                    print(*row[:4], sep="\t", file=h)
 
     # Function fo process alike tables
     def get_tables(self, like, out_dir):
