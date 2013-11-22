@@ -5,7 +5,7 @@
 ##
 ## Usage: python extract_UCSC.py [table name] [field name] [output dir]
 ##
-## Example: python extract_UCSC.py wgEncodeBroadHmmGm12878HMM histoneMarks
+## Example: python extract_UCSC.py wgEncodeBroadHmmGm12878HMM name chromStates
 ## Example: python extract_UCSC.py wgEncodeRegTfbsClusteredV3 name tfbsEncode
 ## Example: python extract_UCSC.py gap type gapLocations
 ## Example: python extract_UCSC.py coriellDelDup cellType coriellCNVs
