@@ -1,8 +1,19 @@
 import networkx as nx
+import pandas
+import numpy
+
 from scipy.stats import fisher_exact
+from pandas import DataFrame
 
 from .db.model import *
 from .db.model import Ontology as DBOntology
+
+def gsea_enrichment_score(labels, ranking, p=1):
+    hits = numpy.power(numpy.abs(ranking * labels), p)
+    p_hit = hits.cumsum() / hits.sum()
+    p_miss = (numpy.abs(labels - 1) / (labels.shape[0] - labels.sum())).cumsum()
+    dx = p_hit - p_miss
+    return dx[numpy.abs(dx).argmax()]
 
 class Ontology(nx.DiGraph):
     def __init__(self, session, taxon_id=9606, namespace="GO"):
@@ -39,7 +50,7 @@ class Ontology(nx.DiGraph):
         index = []
         rows = []
         for term in self.nodes():
-            annotated = self.node[term].get("genes", set())
+            annotated = self.node[term].get("genes", set()) & background
             intersect = len(selected & annotated)
             if intersect <= 1:
                 continue
@@ -47,6 +58,7 @@ class Ontology(nx.DiGraph):
             c = len(annotated - selected)
             d = len(background) - (intersect + b + c)
             ct = [[intersect,b],[c,d]]
+            assert (intersect + b + c + d) == len(background)
             odds_ratio, p_value = fisher_exact(ct, alternative="greater")
             if p_value <= cutoff:
                 index.append(term)
@@ -80,9 +92,9 @@ class Ontology(nx.DiGraph):
             es = gsea_enrichment_score(labels, ranking)
             es_null = []
             for i in range(n_permutations):
-                np.random.shuffle(labels)
+                numpy.random.shuffle(labels)
                 es_null.append(gsea_enrichment_score(labels, ranking))
-            es_null = np.array(es_null)
+            es_null = numpy.array(es_null)
             es_neg = False
             if es < 0:
                 es_neg = True
@@ -90,7 +102,7 @@ class Ontology(nx.DiGraph):
                 es_null *= -1
             es_null = es_null[es_null > 0]
             es_null.sort()
-            ix = np.searchsorted(es_null, es)
+            ix = numpy.searchsorted(es_null, es)
             n = es_null.shape[0]
             p_value = (n - ix) / n
             if es_neg:
@@ -105,18 +117,13 @@ class Ontology(nx.DiGraph):
                                       columns=columns, 
                                       index="Term ID").sort("P-Value")
 
-def gsea_enrichment_score(labels, ranking, p=1):
-    hits = np.power(np.abs(ranking * labels), p)
-    p_hit = hits.cumsum() / hits.sum()
-    p_miss = (np.abs(labels - 1) / (labels.shape[0] - labels.sum())).cumsum()
-    dx = p_hit - p_miss
-    return dx[np.abs(dx).argmax()]
+if __name__ == "__main__":
+    #go = Ontology()
+    #df = go.gsea(C["Age Correlation"])
 
-#go = Ontology()
-#df = go.gsea(C["Age Correlation"])
+    #print(C.ix[[3479,3480,2688,2690],:])
+    #genes = gene_information(9606)
 
-#print(C.ix[[3479,3480,2688,2690],:])
-#genes = gene_information(9606)
-
-#n = 200
-#young = go.enrichment(C[:n].index, C.index)
+    #n = 200
+    #young = go.enrichment(C[:n].index, C.index)
+    pass

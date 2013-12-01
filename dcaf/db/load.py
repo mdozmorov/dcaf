@@ -29,7 +29,7 @@ from ..io import MedlineXMLFile, generic_open as open
 NCBI_BASE = "ftp://ftp.ncbi.nlm.nih.gov"
 GO_OBO = "http://www.geneontology.org/ontology/obo_format_1_2/gene_ontology_ext.obo"
 
-def _import_brenda(session):
+def import_brenda(session):
     """
     Import the BRENDA Tissue Ontology.
     """
@@ -37,7 +37,7 @@ def _import_brenda(session):
     import_obo(session, dcaf.io.data("brenda.obo"), 
                "BTO", "Brenda Tissue Ontology")
  
-def _import_go(session):
+def import_go(session):
     """
     Import the Gene Ontology and gene-GO annotations.
     """
@@ -90,10 +90,15 @@ def initialize_db(session):
 
     # Add some built-in terms
     log.info("Adding core ontology terms")
-    session.add(Ontology(id=0, namespace="CORE",
-                         description="Core relations inherent to OBO format."))
-    session.add(Term(id=0, ontology_id=0, name="is_a"))
-    session.add(Term(id=1, ontology_id=0, name="part_of"))
+    ontology = Ontology(namespace="CORE",
+                        description="Core relations inherent to OBO format.")
+    session.add(ontology)
+    session.commit()
+
+    session.add(Term(ontology_id=ontology.id, 
+                     name="is_a"))
+    session.add(Term(ontology_id=ontology.id, 
+                     name="part_of"))
     session.commit()
 
     # Load NCBI taxa into 'taxon' table
@@ -107,22 +112,20 @@ def initialize_db(session):
     raw_db.commit()
 
     # Load Entrez Gene IDs, names, symbols, etc, into 'gene'
-    log.info("Loading NCBI Entrez Gene data ...")
+    log.info("Loading NCBI Entrez Gene data")
     path = dcaf.io.download(NCBI_BASE + "/gene/DATA/gene_info.gz", 
                             return_path=True)
     c = raw_db.cursor()
     c.copy_from((zcat[path] | grep["-v", "^#"] | sed["1d"] \
                  | awk['$1 != 6617'] \
                  | awk['$1 != 543399'] \
+                 | awk['$1 != 6085'] \
+                 | awk['$1 != 145481'] \
                  | awk['BEGIN { IFS="\t"; OFS="\t" } $1 != 366646 { print $2,$1,$3,$12 }'] \
              ).popen().stdout, "gene")
     raw_db.commit()
     session.commit()
 
-    session = get_session()
-    _import_go(session)
-    _import_brenda(session)
-  
 def import_obo(session, path, namespace, description):
     """
     Import an Open Biomedical Ontology (OBO) file
@@ -210,7 +213,7 @@ def import_medline(session, path):
                             title=journal.name))
                         journal_ids.add(journal.id)
 
-                    session.add(Article(
+                    session.merge(Article(
                         journal_id=journal.id,
                         id=article.id,
                         publication_date=article.publication_date,

@@ -49,7 +49,7 @@ def _is_url(path):
                 parse.scheme in ["http", "https", "ftp"]])
 
 def download(url, return_path=False,
-             text_mode=True, cache=True, cache_dir="/tmp/dcaf"):
+             text_mode=True, cache=True, cache_dir=os.path.expanduser("~/.dcaf/cache/")):
     """
     Download a URL, possibly caching and compressing the result.
     
@@ -77,7 +77,7 @@ def download(url, return_path=False,
     mode = "rt" if text_mode else "rb"
     return path if return_path else gzip.open(path, mode)
 
-def cache_url(url, cache_dir="/tmp/dcaf"):
+def cache_url(url, cache_dir=os.path.expanduser("~/.dcaf/cache")):
     """
     Download a URL to a local cache directory, returning the local path.
     If the URL has already been downloaded, just return the path.
