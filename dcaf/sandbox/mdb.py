@@ -225,7 +225,8 @@ class Table(object):
         # FIXME: iterate over multiple pages
         for col in self._columns:
             print(col.name, col.col_type, col.bitmask & 0x01, col.offset_V, col.offset_F, col.col_len)
-        return self._iter_page(14)
+        return self._iter_page(page)
+        #return self._iter_page(14)
    
     def _iter_page(self, page):
         mm = self._mdb._map
@@ -269,7 +270,6 @@ class Table(object):
                                             var_offset_data)
                 var_offsets = [start+o for o in
                                reversed(var_offsets)]
-                print(var_offsets)
                 var_ix = 0
                 for col in self._columns:
                     type = col.col_type
@@ -303,7 +303,7 @@ class Table(object):
                     pass
             yield row
 
-path = "/home/gilesc/data/SORD_Master_v30.mdb"
+path = "/home/gilesc/data/SORD29.mdb"
 db = MDB(path)
 for i,row in enumerate(db._catalog):
     print(row[:3])

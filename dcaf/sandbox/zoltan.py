@@ -1,21 +1,32 @@
+import os
+import imp
 from itertools import repeat
 
 import numpy
 import pandas
 import matplotlib
 import matplotlib.pyplot as plt
-
 from statsmodels.stats.multitest import multipletests
 from scipy.stats import ttest_ind
 from patsy import dmatrix
 from statsmodels.regression.linear_model import OLS
+from openpyxl import Workbook
 
 import dcaf.dataset
 import dcaf.learn
+import dcaf.db
+from dcaf.ontology import Ontology
 from dcaf.dataset import load_dataset
 from dcaf.learn import QuantileNormalizer, Scaler
 from dcaf.expression import aov
 from dcaf.db.model import Gene
+
+
+RESET = False
+
+OUTDIR = "/tmp/zoltan/"
+if not os.path.exists(OUTDIR):
+    os.makedirs(OUTDIR)
 
 def normalize_by_housekeeping_genes(X):
     # Normalize to Ywhaz/B2m/Hprt
@@ -47,27 +58,8 @@ def remove_point_overlaps(points, shape=(0.5,0.25)):
             o_points.append((x1,y1,label))
     return o_points
 
-"""
-def volcano1(X, factor):
-    assert len(factor) == X.shape[0]
-
-    f1,f2 = list(set(factor))
-    log10P = []
-    log2FC = []
-
-    for tx in X.columns:
-        g1 = 2 ** X.ix[factor==f1,tx]
-        g2 = 2 ** X.ix[factor==f2,tx]
-        t, p = ttest_ind(g1,g2)
-        fc = math.log2(g1.mean()) - math.log2(g2.mean())
-        log10P.append(- math.log10(p))
-        log2FC.append(fc)
-
-    #FIXME: may be backwards
-"""
-
 def volcano(fold_change, p_value, labels,
-            title=None):
+            title=None, xlabel=None, ylabel=None):
     """
     Make a volcano plot for visualizing fold changes
     and p-values.
@@ -84,19 +76,20 @@ def volcano(fold_change, p_value, labels,
 
     if title:
         plt.title(title, size=28)
+    xlabel = xlabel or r"log$_{2}$ Fold Change"
+    ylabel = ylabel or r"-log$_{10}$ $p$ Value"
 
-    plt.xlabel(r"log$_{2}$ Fold Change", size=20)
-    plt.ylabel(r"-log$_{10}$ $p$ Value", size=20)
-    x_max = numpy.ceil(numpy.fabs(fold_change)).max()
+    plt.xlabel(xlabel, size=20)
+    plt.ylabel(ylabel, size=20)
+    x_max = numpy.ceil(numpy.fabs(fold_change) + 0.5).max()
     plt.xlim((-x_max,x_max))
     plt.scatter(fold_change, p_value, s=40)
     
-    points = []
-    for label, y, x in zip(labels, p_value, fold_change):
-        if (abs(x) > 0.58) or (y > 1.75):
-            points.append((x,y,label))
-    
+    points = list(zip(fold_change, p_value, labels))
+    points.sort(key=lambda pt: -(abs(pt[0])*pt[1]))
+    points = points[:20]
     points = remove_point_overlaps(points)
+    points = points[:10]
     
     for x,y,label in points:
         plt.annotate(label, 
@@ -104,11 +97,13 @@ def volcano(fold_change, p_value, labels,
                      textcoords="offset points", 
                      ha="right")
 
-def aov_plot_volcano(aov, factor):
+def aov_plot_volcano(aov, factor, **kwargs):
+    if not "title" in kwargs:
+        kwargs["title"] = factor
+
     volcano(aov[factor]["coef"],
             -numpy.log10(aov[factor]["p"]),
-            aov.index,
-            title=factor)
+            aov.index, **kwargs)
 
 def multiaov(X,D,correct=True):
     data = {}
@@ -133,41 +128,82 @@ def multiaov(X,D,correct=True):
     return aov
 
 
-X, P = load_dataset("hfd_hippocampus")
-X = QuantileNormalizer().fit_transform(2 ** X)\
-                        .apply(numpy.log2)
+if True:
+    X, P = load_dataset("hfd_hippocampus")
+    X = QuantileNormalizer().fit_transform(2 ** X)\
+                            .apply(numpy.log2)
 
-f_age = "C(Age,levels=['Young','Old'])"
-f_diet = "C(Diet,levels=['Control','HFD'])"
-f = " + ".join([f_age, f_diet, f_age+":"+f_diet])
-D = dmatrix(f, data=P, return_type="dataframe")
-D.columns = ["Intercept", "Age", "Diet", "Age:Diet"]
+    f_age = "C(Age,levels=['Young','Old'])"
+    f_diet = "C(Diet,levels=['Control','HFD'])"
+    f = " + ".join([f_age, f_diet, f_age+":"+f_diet])
+    D = dmatrix(f, data=P, return_type="dataframe")
+    D.columns = ["Intercept", "Age", "Diet", "Age:Diet"]
 
-X_g = X.groupby([P["Age"],P["Diet"]]).mean()
+    X_g = X.groupby([P["Age"],P["Diet"]]).mean()
 
-#aov = multiaov(X,D,correct=False)
-#aov_plot_volcano(aov, "Age:Diet")
-#plt.show()
+if RESET:
+
+    for correct in [True, False]:
+        aov = multiaov(X,D,correct=correct)
+        ext = ".png"
+        if correct:
+            ext = "_corrected" + ext
+
+        FIG_KWARGS = {"pad_inches":0.5, "bbox_inches":"tight", "dpi":90}
+
+        aov_plot_volcano(aov, "Age")
+        plt.savefig(OUTDIR+"Age_volcano" + ext, **FIG_KWARGS)
+        plt.clf()
+
+        aov_plot_volcano(aov, "Diet")
+        plt.savefig(OUTDIR+"Diet_volcano" + ext, **FIG_KWARGS)
+        plt.clf()
+
+        aov_plot_volcano(aov, "Age:Diet", 
+                         title="Age-Diet Interaction",
+                         xlabel=r"ANOVA Coefficient (log$_{2}$ Fold Change)")
+        plt.savefig(OUTDIR+"AgeDietInteraction_volcano" + ext, **FIG_KWARGS)
+        plt.clf()
+
+
+if RESET:
+    session = dcaf.db.get_session()
+
+    symbols = {}
+    for gene in session.query(Gene).filter_by(taxon_id=10090):
+        symbols[gene.symbol] = gene.id
+
+    X_eg = X.T.groupby(symbols).max().T
+
+    ontologies = {}
+    ontologies["MSigDB"] = Ontology(session, taxon_id=10090, namespace="MSigDB")
+    ontologies["GO"] = Ontology(session, taxon_id=10090, namespace="GO")
+
+def write_table_excel(df, path, sheet_name):
+    import openpyxl
+
+    if os.path.exists(path):
+        wb = openpyxl.load_workbook(path)
+    else:
+        wb = openpyxl.Workbook()
+    sheet = wb.create_sheet()
+    sheet.title = sheet_name
+    for j,col in enumerate(df.columns):
+        sheet.cell(row=0, column=j+1).value = str(col)
+    for i,row in enumerate(df.index):
+        sheet.cell(row=i+1, column=0).value = str(row)
+    for i,row in enumerate(df.to_records()):
+        for j,value in enumerate(row):
+            sheet.cell(row=i+1,column=j+1).value = str(value)
+    wb.save(path)
+
+groups = ["Age", "Diet", "Age:Diet"]
+aov = multiaov(X_eg, D, correct=False)
+
+for group in groups:
+    for o_name, o in ontologies.items():
+        p = list(aov[(group, "p")].order().index)
+        gsea = o.gsea(aov[(group, "p")])
+        write_table_excel(gsea,OUTDIR+"enrichment.xls",group+"_"+o_name)
 
 # TODO: Trend deviation
-
-import imp
-
-import dcaf.ontology
-imp.reload(dcaf.ontology)
-import dcaf.db
-
-session = dcaf.db.get_session()
-
-symbols = {}
-for gene in session.query(Gene).filter_by(taxon_id=10090):
-    symbols[gene.symbol] = gene.id
-
-o = dcaf.ontology.Ontology(session, taxon_id=10090)
-
-X_eg = X.T.groupby(symbols).max().T
-
-aov = multiaov(X_eg, D)
-#p = list(aov[("Age:Diet", "p")].order().index)
-#ea = o.enrichment(p[:10], background=p, cutoff=1)
-gsea = o.gsea(aov[("Age:Diet", "p")])

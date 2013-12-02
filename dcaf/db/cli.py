@@ -7,7 +7,7 @@ import argparse
 
 import dcaf.util
 
-from .load import import_go, import_brenda, import_medline, import_soft, import_obo, initialize_db
+from .load import *
 from .core import get_session, log
 
 @dcaf.util.entry_point
@@ -31,6 +31,11 @@ def dcafdb(argv):
     sp_import_brenda = sp.add_parser("import-brenda")
     sp_import_brenda.set_defaults(func=lambda session,args: 
                               import_brenda(session))
+
+    sp_import_msigdb = sp.add_parser("import-msigdb")
+    sp_import_msigdb.add_argument("path")
+    sp_import_msigdb.set_defaults(func=lambda session,args: 
+                                  import_msigdb(session, args.path))
 
     sp_import_medline = sp.add_parser("import-medline")
     sp_import_medline.add_argument("path")

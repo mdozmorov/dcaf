@@ -20,8 +20,10 @@ class Ontology(nx.DiGraph):
         super(Ontology, self).__init__()
         o = session.query(DBOntology).filter_by(namespace=namespace)
 
-        for t in session.query(Term).join(DBOntology.terms).filter(DBOntology.namespace==namespace):
-            self.add_node(t.id, accession=t.accession, name=t.name)
+        for t in session.query(Term).join(DBOntology.terms)\
+                                    .filter(DBOntology.namespace==namespace):
+            self.add_node(t.id, accession=t.accession, name=t.name,
+                          description=t.description)
 
         # FIXME: figure out multiple joins in SQLAlchemy
         for e in session.query(TermRelation):
@@ -31,7 +33,8 @@ class Ontology(nx.DiGraph):
         self._genes = set()
 
         for e in session.query(GeneTerm).join(Term).join(DBOntology).join(Gene)\
-            .filter(DBOntology.namespace==namespace).filter(Gene.taxon_id==taxon_id):
+            .filter(DBOntology.namespace==namespace)\
+            .filter(Gene.taxon_id==taxon_id):
             self.add_node(e.term_id)
             data = self.node[e.term_id]
             if not "genes" in data:
@@ -64,9 +67,10 @@ class Ontology(nx.DiGraph):
                 index.append(term)
                 rows.append((term, self.node[term]["accession"],
                              self.node[term]["name"], 
+                             self.node[term]["description"], 
                              intersect, len(annotated),
                              odds_ratio, p_value))
-        columns = ["Term ID", "Accession", "Description", "Count", 
+        columns = ["Term ID", "Accession", "Term", "Description", "Count", 
                    "Total", "Odds Ratio", "P-Value"]
         return pandas.DataFrame.from_records(rows, index="Term ID",
                                              columns=columns).sort("P-Value")
@@ -79,7 +83,6 @@ class Ontology(nx.DiGraph):
         rows = []
 
         for term in self.nodes():
-            print(term)
             annotated = self.node[term].get("genes", set())
             if len(annotated) < min_count:
                 continue
@@ -110,8 +113,9 @@ class Ontology(nx.DiGraph):
             rows.append((term, 
                          self.node[term]["accession"], 
                          self.node[term]["name"], 
+                         self.node[term]["description"], 
                          labels.sum(), es, p_value))
-        columns = ["Term ID", "Accession", "Description", 
+        columns = ["Term ID", "Accession", "Term", "Description",
                    "Count", "Enrichment Score", "P-Value"]
         return DataFrame.from_records(rows, 
                                       columns=columns, 

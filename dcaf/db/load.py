@@ -15,10 +15,12 @@ Functions to load data into the dcaf database.
 
 import os
 import itertools
+import functools
 
 import numpy
 
 from plumbum.cmd import tar, grep, cut, zcat, awk, sed, head
+from sqlalchemy.exc import IntegrityError
 
 import dcaf.io
 
@@ -153,6 +155,41 @@ def import_obo(session, path, namespace, description):
             session.add(TermRelation(agent=child.id, target=parent.id, 
                                      relation=rel.id, probability=1))
         session.commit()
+
+def import_msigdb(session, path):
+    log.info("Importing MSigDB from file: " + path)
+
+    # NOTE: Each GeneSet has an organism (common name) attached.
+    # Need to work this in somehow or will the already known Entrez
+    # ID-Taxon linkage suffice?
+    
+    ontology = Ontology(namespace="MSigDB", 
+                        description="Broad Institute's Molecular Signature Database")
+    session.add(ontology)
+    session.flush()
+    
+    @functools.lru_cache()
+    def taxon_symbol_map(taxon_name):
+        return dict((g.symbol.lower(), g.id) \
+                    for g in session.query(Gene)\
+                    .join(Taxon).filter(Taxon.name==taxon_name))
+
+    with dcaf.io.MSigDB(path) as h:
+        for entry in h:
+            if entry.contributor != "Gene Ontology":
+                t = Term(name=entry.name, description=entry.description,
+                         accession="MSigDB:"+entry.accession)
+                ontology.terms.append(t)
+                # FIXME: way to avoid all this committing? (to insert
+                # only if gene ID exists?)
+                session.flush()
+                symbol_map = taxon_symbol_map(entry.organism)
+                for symbol in entry.gene_symbols:
+                    gene_id = symbol_map.get(symbol.lower())
+                    if gene_id:
+                        link = GeneTerm(term_id=t.id, gene_id=gene_id, probability=1)
+                        session.merge(link)
+    session.commit()
 
 def import_soft(session, path):
     """

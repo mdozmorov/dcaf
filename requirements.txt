@@ -16,6 +16,7 @@ psycopg2
 xlrd
 
 # Miscellaneous
+enum34
 termcolor
 plumbum
 
