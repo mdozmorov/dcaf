@@ -210,6 +210,7 @@ def import_soft(session, path):
 
     for i,sample in enumerate(parser):
         v = sample["expression"]
+        v = dict(zip(v.index, v))
         data = [v.get(g, numpy.nan) for g in genes]
         del sample["expression"]
         sample["data"] = data

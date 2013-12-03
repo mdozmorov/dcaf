@@ -204,6 +204,7 @@ for group in groups:
     for o_name, o in ontologies.items():
         p = list(aov[(group, "p")].order().index)
         gsea = o.gsea(aov[(group, "p")])
+        group = group.replace(":", "-")
         write_table_excel(gsea,OUTDIR+"enrichment.xls",group+"_"+o_name)
 
 # TODO: Trend deviation
