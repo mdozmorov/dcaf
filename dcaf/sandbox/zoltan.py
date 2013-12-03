@@ -21,8 +21,7 @@ from dcaf.learn import QuantileNormalizer, Scaler
 from dcaf.expression import aov
 from dcaf.db.model import Gene
 
-
-RESET = False
+RESET = "X_g" not in locals()
 
 OUTDIR = "/tmp/zoltan/"
 if not os.path.exists(OUTDIR):
@@ -128,7 +127,7 @@ def multiaov(X,D,correct=True):
     return aov
 
 
-if True:
+if RESET:
     X, P = load_dataset("hfd_hippocampus")
     X = QuantileNormalizer().fit_transform(2 ** X)\
                             .apply(numpy.log2)
@@ -145,9 +144,7 @@ if RESET:
 
     for correct in [True, False]:
         aov = multiaov(X,D,correct=correct)
-        ext = ".png"
-        if correct:
-            ext = "_corrected" + ext
+        ext = ("_corrected" if correct else "_nominal") + ".png"
 
         FIG_KWARGS = {"pad_inches":0.5, "bbox_inches":"tight", "dpi":90}
 
@@ -178,32 +175,45 @@ if RESET:
     ontologies = {}
     ontologies["MSigDB"] = Ontology(session, taxon_id=10090, namespace="MSigDB")
     ontologies["GO"] = Ontology(session, taxon_id=10090, namespace="GO")
+    
 
-def write_table_excel(df, path, sheet_name):
+if RESET:
+    groups = ["Age", "Diet", "Age:Diet"]
+    aov = multiaov(X_eg, D, correct=False)
+    gsea = []
+
+    for group in groups:
+        for o_name, o in ontologies.items():
+            p = list(aov[(group, "p")].order().index)
+            rs = o.gsea(aov[(group, "p")])
+            gsea.append((group, o_name, rs))
+
+from pandas import ExcelWriter
+writer = ExcelWriter(OUTDIR+"enrichment.xlsx")
+
+for group, name, df in gsea:
+    sheet_name = (group + "_" + name).replace(":", "-")
+    df.to_excel(writer,sheet_name=sheet_name, 
+                index=False, float_format="%0.3f")
+writer.save()
+
+def fix_column_widths(path):
+    """
+    Adjust the column widths in an Excel 2007 (.xslx) file 
+    to the widest cell in each column.
+    """
     import openpyxl
-
-    if os.path.exists(path):
-        wb = openpyxl.load_workbook(path)
-    else:
-        wb = openpyxl.Workbook()
-    sheet = wb.create_sheet()
-    sheet.title = sheet_name
-    for j,col in enumerate(df.columns):
-        sheet.cell(row=0, column=j+1).value = str(col)
-    for i,row in enumerate(df.index):
-        sheet.cell(row=i+1, column=0).value = str(row)
-    for i,row in enumerate(df.to_records()):
-        for j,value in enumerate(row):
-            sheet.cell(row=i+1,column=j+1).value = str(value)
+    wb = openpyxl.load_workbook(path)
+    for sheet in wb.worksheets:
+        col_index_names = list(sorted(sheet.column_dimensions.keys(),
+                                      key = lambda k: (len(k), k)))
+        for j in range(sheet.get_highest_column()):
+            col = sheet.columns[j]
+            col_index_name = col_index_names[j]
+            width = min(max(len(str(cell.value)) for cell in col) + 0.1, 50)
+            sheet.column_dimensions[col_index_name].width = width
     wb.save(path)
 
-groups = ["Age", "Diet", "Age:Diet"]
-aov = multiaov(X_eg, D, correct=False)
-
-for group in groups:
-    for o_name, o in ontologies.items():
-        p = list(aov[(group, "p")].order().index)
-        gsea = o.gsea(aov[(group, "p")])
-        write_table_excel(gsea,OUTDIR+"enrichment.xls",group+"_"+o_name)
-
+fix_column_widths(OUTDIR+"enrichment.xlsx")
+print("Done")
 # TODO: Trend deviation
