@@ -84,10 +84,11 @@ class Ontology(nx.DiGraph):
 
         for term in self.nodes():
             annotated = self.node[term].get("genes", set())
-            if len(annotated) < min_count:
-                continue
             labels = numpy.array([1 if g in annotated else 0 \
                                   for g in ranked_genes])
+            if labels.sum() < min_count:
+                continue
+
             # NOTE: actual GSEA permutes the phenotype labels on the
             # original gene expression matrix, then recomputes the
             # correlations. Since that would be really slow, I'm just

@@ -15,10 +15,10 @@ from openpyxl import Workbook
 import dcaf.dataset
 import dcaf.learn
 import dcaf.db
+import dcaf.expression
 from dcaf.ontology import Ontology
 from dcaf.dataset import load_dataset
 from dcaf.learn import QuantileNormalizer, Scaler
-from dcaf.expression import aov
 from dcaf.db.model import Gene
 
 RESET = "X_g" not in locals()
@@ -176,27 +176,6 @@ if RESET:
     ontologies["MSigDB"] = Ontology(session, taxon_id=10090, namespace="MSigDB")
     ontologies["GO"] = Ontology(session, taxon_id=10090, namespace="GO")
     
-
-if RESET:
-    groups = ["Age", "Diet", "Age:Diet"]
-    aov = multiaov(X_eg, D, correct=False)
-    gsea = []
-
-    for group in groups:
-        for o_name, o in ontologies.items():
-            p = list(aov[(group, "p")].order().index)
-            rs = o.gsea(aov[(group, "p")])
-            gsea.append((group, o_name, rs))
-
-from pandas import ExcelWriter
-writer = ExcelWriter(OUTDIR+"enrichment.xlsx")
-
-for group, name, df in gsea:
-    sheet_name = (group + "_" + name).replace(":", "-")
-    df.to_excel(writer,sheet_name=sheet_name, 
-                index=False, float_format="%0.3f")
-writer.save()
-
 def fix_column_widths(path):
     """
     Adjust the column widths in an Excel 2007 (.xslx) file 
@@ -214,6 +193,37 @@ def fix_column_widths(path):
             sheet.column_dimensions[col_index_name].width = width
     wb.save(path)
 
-fix_column_widths(OUTDIR+"enrichment.xlsx")
+if RESET:
+    groups = ["Age", "Diet", "Age:Diet"]
+    aov = multiaov(X_eg, D, correct=False)
+    gsea = []
+
+    for group in groups:
+        for o_name, o in ontologies.items():
+            p = list(aov[(group, "p")].order().index)
+            rs = o.gsea(aov[(group, "p")], min_count=3)
+            gsea.append((group, o_name, rs))
+
+    symbols = dict((g.id, g.symbol) for g in 
+                   session.query(Gene).filter_by(taxon_id=10090))
+
+from pandas import ExcelWriter
+path = OUTDIR+"hfd_hippocampus.xlsx"
+writer = ExcelWriter(path)
+
+aov = multiaov(X_eg, D, correct=False)
+aov.index.name = "Entrez ID"
+aov[("Symbol", None)] = [symbols.get(entrez_id) for entrez_id in 
+                         aov.index]
+aov = aov[[("Symbol", None)] + list(aov.columns[:-1])]
+aov.to_excel(writer, sheet_name="DE Genes", float_format="%0.3f")
+
+for group, name, df in gsea:
+    sheet_name = (group + "_" + name).replace(":", "-")
+    df.to_excel(writer,sheet_name=sheet_name, 
+                index=False, float_format="%0.3f")
+writer.save()
+fix_column_widths(path)
+
 print("Done")
 # TODO: Trend deviation
