@@ -16,6 +16,7 @@ psycopg2
 xlrd
 
 # Miscellaneous
+enum34
 termcolor
 plumbum
 
@@ -27,6 +28,7 @@ plumbum
 git+https://github.com/pydata/pandas.git
 scipy
 networkx
+matplotlib
 
 # Optional speedup packages for pandas
 numexpr

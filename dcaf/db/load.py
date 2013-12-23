@@ -15,10 +15,12 @@ Functions to load data into the dcaf database.
 
 import os
 import itertools
+import functools
 
 import numpy
 
 from plumbum.cmd import tar, grep, cut, zcat, awk, sed, head
+from sqlalchemy.exc import IntegrityError
 
 import dcaf.io
 
@@ -29,7 +31,7 @@ from ..io import MedlineXMLFile, generic_open as open
 NCBI_BASE = "ftp://ftp.ncbi.nlm.nih.gov"
 GO_OBO = "http://www.geneontology.org/ontology/obo_format_1_2/gene_ontology_ext.obo"
 
-def _import_brenda(session):
+def import_brenda(session):
     """
     Import the BRENDA Tissue Ontology.
     """
@@ -37,7 +39,7 @@ def _import_brenda(session):
     import_obo(session, dcaf.io.data("brenda.obo"), 
                "BTO", "Brenda Tissue Ontology")
  
-def _import_go(session):
+def import_go(session):
     """
     Import the Gene Ontology and gene-GO annotations.
     """
@@ -90,10 +92,15 @@ def initialize_db(session):
 
     # Add some built-in terms
     log.info("Adding core ontology terms")
-    session.add(Ontology(id=0, namespace="CORE",
-                         description="Core relations inherent to OBO format."))
-    session.add(Term(id=0, ontology_id=0, name="is_a"))
-    session.add(Term(id=1, ontology_id=0, name="part_of"))
+    ontology = Ontology(namespace="CORE",
+                        description="Core relations inherent to OBO format.")
+    session.add(ontology)
+    session.commit()
+
+    session.add(Term(ontology_id=ontology.id, 
+                     name="is_a"))
+    session.add(Term(ontology_id=ontology.id, 
+                     name="part_of"))
     session.commit()
 
     # Load NCBI taxa into 'taxon' table
@@ -107,22 +114,20 @@ def initialize_db(session):
     raw_db.commit()
 
     # Load Entrez Gene IDs, names, symbols, etc, into 'gene'
-    log.info("Loading NCBI Entrez Gene data ...")
+    log.info("Loading NCBI Entrez Gene data")
     path = dcaf.io.download(NCBI_BASE + "/gene/DATA/gene_info.gz", 
                             return_path=True)
     c = raw_db.cursor()
     c.copy_from((zcat[path] | grep["-v", "^#"] | sed["1d"] \
                  | awk['$1 != 6617'] \
                  | awk['$1 != 543399'] \
+                 | awk['$1 != 6085'] \
+                 | awk['$1 != 145481'] \
                  | awk['BEGIN { IFS="\t"; OFS="\t" } $1 != 366646 { print $2,$1,$3,$12 }'] \
              ).popen().stdout, "gene")
     raw_db.commit()
     session.commit()
 
-    session = get_session()
-    _import_go(session)
-    _import_brenda(session)
-  
 def import_obo(session, path, namespace, description):
     """
     Import an Open Biomedical Ontology (OBO) file
@@ -151,6 +156,41 @@ def import_obo(session, path, namespace, description):
                                      relation=rel.id, probability=1))
         session.commit()
 
+def import_msigdb(session, path):
+    log.info("Importing MSigDB from file: " + path)
+
+    # NOTE: Each GeneSet has an organism (common name) attached.
+    # Need to work this in somehow or will the already known Entrez
+    # ID-Taxon linkage suffice?
+    
+    ontology = Ontology(namespace="MSigDB", 
+                        description="Broad Institute's Molecular Signature Database")
+    session.add(ontology)
+    session.flush()
+    
+    @functools.lru_cache()
+    def taxon_symbol_map(taxon_name):
+        return dict((g.symbol.lower(), g.id) \
+                    for g in session.query(Gene)\
+                    .join(Taxon).filter(Taxon.name==taxon_name))
+
+    with dcaf.io.MSigDB(path) as h:
+        for entry in h:
+            if entry.contributor != "Gene Ontology":
+                t = Term(name=entry.name, description=entry.description,
+                         accession="MSigDB:"+entry.accession)
+                ontology.terms.append(t)
+                # FIXME: way to avoid all this committing? (to insert
+                # only if gene ID exists?)
+                session.flush()
+                symbol_map = taxon_symbol_map(entry.organism)
+                for symbol in entry.gene_symbols:
+                    gene_id = symbol_map.get(symbol.lower())
+                    if gene_id:
+                        link = GeneTerm(term_id=t.id, gene_id=gene_id, probability=1)
+                        session.merge(link)
+    session.commit()
+
 def import_soft(session, path):
     """
     Load a GEO SOFT file (mostly expression data) into the database.
@@ -170,6 +210,7 @@ def import_soft(session, path):
 
     for i,sample in enumerate(parser):
         v = sample["expression"]
+        v = dict(zip(v.index, v))
         data = [v.get(g, numpy.nan) for g in genes]
         del sample["expression"]
         sample["data"] = data
@@ -210,7 +251,7 @@ def import_medline(session, path):
                             title=journal.name))
                         journal_ids.add(journal.id)
 
-                    session.add(Article(
+                    session.merge(Article(
                         journal_id=journal.id,
                         id=article.id,
                         publication_date=article.publication_date,

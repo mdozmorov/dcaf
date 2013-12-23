@@ -109,6 +109,8 @@ class Ontology(Base):
 
 class Term(Base):
     name = Column(String)
+    description = Column(String)
+    long_description = Column(String)
     accession = Column(String, unique=True)
     
     ontology_id = FK("ontology.id")
