@@ -21,7 +21,10 @@ from dcaf.dataset import load_dataset
 from dcaf.learn import QuantileNormalizer, Scaler
 from dcaf.db.model import Gene
 
+# http://www.gene-quantification.de/livak-2001.pdf
+
 RESET = "X_g" not in locals()
+#RESET = True
 
 OUTDIR = "/tmp/zoltan/"
 if not os.path.exists(OUTDIR):
@@ -129,8 +132,9 @@ def multiaov(X,D,correct=True):
 
 if RESET:
     X, P = load_dataset("hfd_hippocampus")
-    X = QuantileNormalizer().fit_transform(2 ** X)\
-                            .apply(numpy.log2)
+    #X = QuantileNormalizer().fit_transform(2 ** X)\
+    #                        .apply(numpy.log2)
+    X = normalize_by_housekeeping_genes(X)
 
     f_age = "C(Age,levels=['Young','Old'])"
     f_diet = "C(Diet,levels=['Control','HFD'])"
@@ -207,23 +211,23 @@ if RESET:
     symbols = dict((g.id, g.symbol) for g in 
                    session.query(Gene).filter_by(taxon_id=10090))
 
-from pandas import ExcelWriter
-path = OUTDIR+"hfd_hippocampus.xlsx"
-writer = ExcelWriter(path)
+    from pandas import ExcelWriter
+    path = OUTDIR+"hfd_hippocampus.xlsx"
+    writer = ExcelWriter(path)
 
-aov = multiaov(X_eg, D, correct=False)
-aov.index.name = "Entrez ID"
-aov[("Symbol", None)] = [symbols.get(entrez_id) for entrez_id in 
-                         aov.index]
-aov = aov[[("Symbol", None)] + list(aov.columns[:-1])]
-aov.to_excel(writer, sheet_name="DE Genes", float_format="%0.3f")
+    aov = multiaov(X_eg, D, correct=False)
+    aov.index.name = "Entrez ID"
+    aov[("Symbol", None)] = [symbols.get(entrez_id) for entrez_id in 
+                             aov.index]
+    aov = aov[[("Symbol", None)] + list(aov.columns[:-1])]
+    aov.to_excel(writer, sheet_name="DE Genes", float_format="%0.3f")
 
-for group, name, df in gsea:
-    sheet_name = (group + "_" + name).replace(":", "-")
-    df.to_excel(writer,sheet_name=sheet_name, 
-                index=False, float_format="%0.3f")
-writer.save()
-fix_column_widths(path)
+    for group, name, df in gsea:
+        sheet_name = (group + "_" + name).replace(":", "-")
+        df.to_excel(writer,sheet_name=sheet_name, 
+                    index=False, float_format="%0.3f")
+    writer.save()
+    fix_column_widths(path)
 
 print("Done")
 # TODO: Trend deviation

@@ -27,8 +27,8 @@ is licensed under the `GNU Affero General Public License version 3
 <http://www.gnu.org/licenses/agpl-3.0.html>`_ (or any later version
 thereof, at your option).
 
-Contents:
----------
+General Information
+-------------------
 
 .. toctree::
    :maxdepth: 3
@@ -36,6 +36,7 @@ Contents:
    install
    configuration
    tutorial
+   text
    api
              
 Indices and tables

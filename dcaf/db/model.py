@@ -23,7 +23,8 @@ from sqlalchemy.orm import relationship, deferred
 from sqlalchemy.schema import CheckConstraint, UniqueConstraint
 from sqlalchemy.ext.declarative import as_declarative, declared_attr
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.dialects.postgresql import INT8RANGE, ARRAY
+
+from sqlalchemy.dialects.postgresql import INT8RANGE, ARRAY, TEXT
 
 
 def FK(column, index=True, nullable=False):
@@ -148,18 +149,38 @@ class GeneTerm(Base):
     term_id = FK("term.id")
     probability = Column(Float)
 
+#############
 # Text mining
+#############
+
+from sqlalchemy import types
+from sqlalchemy.ext.compiler import compiles
+
+class tsvector(types.TypeDecorator):
+    impl = types.UnicodeText
+
+@compiles(tsvector, "postgresql")
+def compile_tsvector(element, compiler, **kwargs):
+    return "tsvector"
 
 class Journal(Base):
     issn = Column(String)
     title = Column(String)
     
     articles = relationship("Article", backref="journal")
-
+    
 class Article(Base):
     journal_id = FK("journal.id")
 
     publication_date = Column(Date)
-    title = Column(String)
-    abstract = Column(String)
-    full_text = Column(String)
+    title = Column(TEXT)
+    abstract = Column(TEXT)
+    full_text = Column(TEXT)
+
+class TermProfile(Base):
+    term_id = FK("term.id")
+    
+    title = Column(ARRAY(Integer))
+    abstract = Column(ARRAY(Integer))
+    #sentence = Column(ARRAY(Integer)) 
+    #full_text = Column(ARRAY(INTEGER))
