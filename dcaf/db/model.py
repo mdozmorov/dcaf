@@ -177,10 +177,11 @@ class Article(Base):
     abstract = Column(TEXT)
     full_text = Column(TEXT)
 
-class TermProfile(Base):
+class Posting(Base):
     term_id = FK("term.id")
     
-    title = Column(ARRAY(Integer))
-    abstract = Column(ARRAY(Integer))
+    articles = Column(ARRAY(Integer))
+    #title = Column(ARRAY(Integer))
+    #abstract = Column(ARRAY(Integer))
     #sentence = Column(ARRAY(Integer)) 
     #full_text = Column(ARRAY(INTEGER))
