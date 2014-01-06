@@ -46,3 +46,10 @@ statsmodels
 #########################
 
 pysam
+
+###############
+# Web interface
+###############
+
+Flask
+mako

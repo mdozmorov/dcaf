@@ -1,0 +1,14 @@
+<table>
+  <thead>
+  % for col in header:
+    <th>${col}</th>
+  % endfor
+  </thead>
+  % for row in rows:
+  <tr>
+    % for e in row:
+      <td>${e}</td>
+    % endfor
+  </tr>
+  % endfor
+</table>

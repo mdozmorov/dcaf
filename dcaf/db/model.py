@@ -176,6 +176,10 @@ class Article(Base):
     title = Column(TEXT)
     abstract = Column(TEXT)
     full_text = Column(TEXT)
+    
+    @property
+    def text(self):
+        return " ".join([self.title, self.abstract or ""]) 
 
 class Posting(Base):
     term_id = FK("term.id")

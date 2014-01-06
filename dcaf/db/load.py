@@ -21,6 +21,7 @@ import numpy
 
 from plumbum.cmd import tar, grep, cut, zcat, awk, sed, head
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy import func
 
 import dcaf.io
 
@@ -143,11 +144,14 @@ def import_obo(session, path, namespace, description):
 
         obo = dcaf.io.OBOFile(handle)
         for term in obo:
-            ontology.terms.append(Term(accession=term.id, name=term.name))
+            db_term = Term(accession=term.id, name=term.name)
             for parent in term.is_a:
                 relations.append((term.id, parent, is_a))
             for parent in term.part_of:
                 relations.append((term.id, parent, part_of))
+            for synonym in term.synonym:
+                db_term.synonyms.append(Synonym(synonym=synonym))
+            ontology.terms.append(db_term)
 
         for child_acc, parent_acc, rel in relations:
             child = session.query(Term).filter_by(accession=child_acc).first()
@@ -251,12 +255,14 @@ def import_medline(session, path):
                             title=journal.name))
                         journal_ids.add(journal.id)
 
-                    session.merge(Article(
+                    #text = " ".join([article.title, article.abstract or ""]) 
+                    article = Article(
                         journal_id=journal.id,
                         id=article.id,
                         publication_date=article.publication_date,
                         title=article.title,
-                        abstract=article.abstract))
+                        abstract=article.abstract)
+
+                    session.merge(article)
             session.commit()
     session.commit()
-
