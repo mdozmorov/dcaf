@@ -39,6 +39,8 @@ class TermSearch(object):
 
 from collections import defaultdict
             
+from sqlalchemy import func
+
 import dcaf
 from dcaf.db.model import *
 
@@ -55,15 +57,16 @@ def find_postings_for_ontology_terms(session):
 
     index = defaultdict(set)
 
-    for i,article in enumerate(session.query(Article).limit(500000)):
+    for i,article in enumerate(session.query(Article)):
         text = " ".join([article.title, article.abstract or ""]) 
         for term_id, start, end in ts.search(text):
             index[term_id].add(article.id)
+    return index
 
 def sync_postings():
     session = dcaf.db.get_session()
     postings = find_postings_for_ontology_terms(session)
-    for term_id, articles in index.items():
+    for term_id, articles in postings.items():
         session.add(Posting(term_id=term_id, articles=articles))
     session.commit()
 
@@ -75,13 +78,17 @@ def find_postings_for_text(text):
     session = dcaf.db.get_session()
     text = text.lower()
     postings = session.query(Article.id)\
-                      .filter((Article.title.contains(text)) | 
-                              (Article.abstract.contains(text)))
+                      .filter(func.to_tsvector("english", Article.title \
+                                               + " " \
+                                               + Article.abstract).op('@@')\
+                              (func.to_tsquery("english", text)))
     return set(r[0] for r in postings)
 
 import pandas
 
 def similar_terms(text):
+    if " " in text:
+        text = "''" + text + "''"
     rows = []
     session = dcaf.db.get_session()
     postings = find_postings_for_text(text)
@@ -125,3 +132,7 @@ def main():
     
 if __name__ == "__main__":
     app.run()
+    #sync_postings()
+
+# CREATE INDEX article_idx ON article USING gin(to_tsvector('english', title || ' ' || abstract));
+# SELECT count(*) from article WHERE to_tsvector('english', title || ' ' || abstract) @@ to_tsquery('english', '''systemic lupus erythematosus''');
