@@ -17,7 +17,7 @@ containing:
 import os
 import re
 
-from sqlalchemy import create_engine, Column, Integer, \
+from sqlalchemy import create_engine, func, Column, Integer, \
     String, ForeignKey, Float, Date
 from sqlalchemy.orm import relationship, deferred
 from sqlalchemy.schema import CheckConstraint, UniqueConstraint
@@ -177,9 +177,13 @@ class Article(Base):
     abstract = Column(TEXT)
     full_text = Column(TEXT)
     
-    @property
+    @hybrid_property
     def text(self):
         return " ".join([self.title, self.abstract or ""]) 
+    
+    @text.expression
+    def text(cls):
+        return cls.title + ' ' + cls.abstract
 
 class Posting(Base):
     term_id = FK("term.id")
