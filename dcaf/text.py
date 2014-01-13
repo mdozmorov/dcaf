@@ -92,6 +92,7 @@ def similar_terms(text):
     rows = []
     session = dcaf.db.get_session()
     postings = find_postings_for_text(text)
+    print(postings)
     for term_id, term_name, term_postings in \
         session.query(Term.id, Term.name, Posting.articles)\
                .join(Posting):
@@ -105,7 +106,30 @@ def similar_terms(text):
         
             
 if __name__ == "__main__":
-   sync_postings()
+    from dcaf.db.model import *
+    from dcaf.db import get_session
+
+    session = get_session()
+    # FIXME: create this table as materialized view
+    # See: http://stackoverflow.com/questions/9766940/how-to-create-an-sql-view-with-sqlalchemy
+    # FIXME: clean extra characters like &,|, etc, that would be
+    # misinterpreted as boolean operators by to_tsquery
+    session.execute("""
+    INSERT INTO posting (term_id, articles) (
+        SELECT term.id, (sort(array_agg(article.id)))
+        FROM term
+        INNER JOIN synonym 
+        ON synonym.term_id=term.id 
+        INNER JOIN article 
+        ON to_tsvector('english', article.title || ' ' || article.abstract) 
+          @@ to_tsquery('english', '' || quote_literal(synonym.synonym) || '') 
+        GROUP BY term.id 
+    );""")
+    session.commit()
+
+    print("Postings synchronized.")
+    print(session.query(Sample).count())
+
 
 # CREATE INDEX article_idx ON article USING gin(to_tsvector('english', title || ' ' || abstract));
 # SELECT count(*) from article WHERE to_tsvector('english', title || ' ' || abstract) @@ to_tsquery('english', '''systemic lupus erythematosus''');
