@@ -26,6 +26,23 @@ from sqlalchemy.ext.hybrid import hybrid_property
 
 from sqlalchemy.dialects.postgresql import INT8RANGE, ARRAY, TEXT
 
+#################################
+# Non-standard or extension types
+#################################
+
+from sqlalchemy import types
+from sqlalchemy.ext.compiler import compiles
+
+class tsvector(types.TypeDecorator):
+    impl = types.UnicodeText
+
+@compiles(tsvector, "postgresql")
+def compile_tsvector(element, compiler, **kwargs):
+    return "tsvector"
+
+##########################
+# Table definition helpers
+##########################
 
 def FK(column, index=True, nullable=False):
     return Column(Integer, ForeignKey(column, ondelete="CASCADE"),
@@ -39,6 +56,10 @@ class Base(object):
                         for x in cls.__name__])[1:]
 
     id = Column(Integer, primary_key=True, nullable=False)
+
+########
+# Tables
+########
 
 # Basic genome information
 
@@ -60,6 +81,22 @@ class Contig(Base):
     size = Integer
     
     features = relationship("Feature", backref="contig")
+
+## WIP: move from genes to transcripts
+
+class Transcript(Base):
+    taxon_id = FK("taxon.id")
+    symbol = Column(String)
+    name = Column(String)
+
+class Sequence(Base):
+    sequence = Column(String)
+
+class TranscriptXref(Base):
+    transcript_id = FK("transcript.id")
+    pass
+
+## End WIP
 
 class Gene(Base):
     taxon_id = FK("taxon.id")
@@ -87,7 +124,7 @@ class Sample(Base):
     molecule = Column(String)
     source = Column(String)
     channel_count = Column(Integer)
-    data = deferred(Column(ARRAY(Float, dimensions=1)))
+    data = deferred(Column(ARRAY(float, dimensions=1)))
     
     @property
     def age(self):
@@ -152,16 +189,6 @@ class GeneTerm(Base):
 #############
 # Text mining
 #############
-
-from sqlalchemy import types
-from sqlalchemy.ext.compiler import compiles
-
-class tsvector(types.TypeDecorator):
-    impl = types.UnicodeText
-
-@compiles(tsvector, "postgresql")
-def compile_tsvector(element, compiler, **kwargs):
-    return "tsvector"
 
 class Journal(Base):
     issn = Column(String)

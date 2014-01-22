@@ -32,6 +32,15 @@ from ..io import MedlineXMLFile, generic_open as open
 NCBI_BASE = "ftp://ftp.ncbi.nlm.nih.gov"
 GO_OBO = "http://www.geneontology.org/ontology/obo_format_1_2/gene_ontology_ext.obo"
 
+class Importer(object):
+    DOWNLOAD = []
+
+class OBOImporter(Importer):
+    pass
+
+class BTOImporter(Importer):
+    pass
+
 def import_brenda(session):
     """
     Import the BRENDA Tissue Ontology.
