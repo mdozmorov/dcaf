@@ -38,6 +38,7 @@ General Information
    tutorial
    text
    api
+   todo
              
 Indices and tables
 ==================
