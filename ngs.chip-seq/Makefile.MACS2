@@ -1,0 +1,79 @@
+all:	05_m2-rs-bowtie2-raw
+#all:	05_m2-bowtie2-raw 05_m2-bowtie2-tmatic 05_m2-markdup-bowtie2-raw 05_m2-rs-bowtie2-tmatic 05_m2-rs-markdup-bowtie2-tmatic
+
+05_m2-bowtie2-raw:	02_bowtie2-raw
+	DIR="05_m2-bowtie2-raw" ; \
+	if [ ! -d $$DIR ]; then \
+		mkdir $$DIR ; \
+	fi ; \
+	for file in `find 02_bowtie2-raw -type f -name '*.bam'`; do \
+		fname=`basename $$file` ; \
+		fname=$${fname%??????????} ; \
+		qsub -b y -l h_vmem=8G -V -j y -m e -cwd -q all.q -M dozmorovm@omrf.org -N job-$$fname-m2-bowtie2-raw "macs2 callpeak -t $$file --name $$DIR/$$fname" ; \
+    done
+
+05_m2-bowtie2-tmatic:	02_bowtie2-tmatic
+	DIR="05_m2-bowtie2-tmatic" ; \
+	if [ ! -d $$DIR ]; then \
+		mkdir $$DIR ; \
+	fi ; \
+	for file in `find 02_bowtie2-tmatic -type f -name '*.bam'`; do \
+		fname=`basename $$file` ; \
+		fname=$${fname%??????????} ; \
+		qsub -b y -l h_vmem=8G -V -j y -m e -cwd -q all.q -N job-$$fname-m2-bowtie2-tmatic "macs2 callpeak -t $$file --name $$DIR/$$fname" ; \
+    done
+
+05_m2-markdup-bowtie2-raw:	03_markdup-bowtie2-raw
+	DIR="05_m2-markdup-bowtie2-raw" ; \
+	if [ ! -d $$DIR ]; then \
+		mkdir $$DIR ; \
+	fi ; \
+	for file in `find 03_markdup-bowtie2-raw -type f -name '*.bam'`; do \
+		fname=`basename $$file` ; \
+		fname=$${fname%??????????} ; \
+		qsub -b y -l h_vmem=8G -V -j y -m e -cwd -q all.q -N job-$$fname-m2-markdup-bowtie2-raw "macs2 callpeak -t $$file --name $$DIR/$$fname" ; \
+    done
+
+05_m2-markdup-bowtie2-tmatic:	03_markdup-bowtie2-tmatic
+	DIR="05_m2-markdup-bowtie2-tmatic" ; \
+	if [ ! -d $$DIR ]; then \
+		mkdir $$DIR ; \
+	fi ; \
+	for file in `find 03_markdup-bowtie2-tmatic -type f -name '*.bam'`; do \
+		fname=`basename $$file` ; \
+		fname=$${fname%??????????} ; \
+		qsub -b y -l h_vmem=8G -V -j y -m e -cwd -q all.q -N job-$$fname-m2-markdup-bowtie2-tmatic "macs2 callpeak -t $$file --name $$DIR/$$fname" ; \
+    done
+
+05_m2-rs-bowtie2-raw:	04_rs-bowtie2-raw
+	DIR="05_m2-rs-bowtie2-raw" ; \
+	if [ ! -d $$DIR ]; then \
+		mkdir $$DIR ; \
+	fi ; \
+	for file in `find 04_rs-bowtie2-raw -type f -name '*.bam'`; do \
+		fname=`basename $$file` ; \
+		fname=$${fname%????} ; \
+		qsub -b y -l h_vmem=8G -V -j y -m e -cwd -q all.q -N job-$$fname-m2-rs-bowtie2-raw "macs2 callpeak -t $$file --name $$DIR/$$fname" ; \
+    done
+
+05_m2-rs-bowtie2-tmatic:	04_rs-bowtie2-tmatic
+	DIR="05_m2-rs-bowtie2-tmatic" ; \
+	if [ ! -d $$DIR ]; then \
+		mkdir $$DIR ; \
+	fi ; \
+	for file in `find 04_rs-bowtie2-tmatic -type f -name '*.bam'`; do \
+		fname=`basename $$file` ; \
+		fname=$${fname%????} ; \
+		qsub -b y -l h_vmem=8G -V -j y -m e -cwd -q all.q -N job-$$fname-m2-rs-bowtie2-tmatic "macs2 callpeak -t $$file --name $$DIR/$$fname" ; \
+    done
+
+05_m2-rs-markdup-bowtie2-tmatic:	04_rs-markdup-bowtie2-tmatic
+	DIR="05_m2-rs-markdup-bowtie2-tmatic" ; \
+	if [ ! -d $$DIR ]; then \
+		mkdir $$DIR ; \
+	fi ; \
+	for file in `find 04_rs-markdup-bowtie2-tmatic -type f -name '*.bam'`; do \
+		fname=`basename $$file` ; \
+		fname=$${fname%????} ; \
+		qsub -b y -l h_vmem=8G -V -j y -m e -cwd -q all.q -N job-$$fname-m2-rs-markdup-bowtie2-tmatic "macs2 callpeak -t $$file --name $$DIR/$$fname" ; \
+    done

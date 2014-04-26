@@ -1,0 +1,90 @@
+#all:	06_meme/05_m2-bowtie2-raw.fa
+#all:	06_meme/05_m2-bowtie2-tmatic.fa 06_meme/05_m2-markdup-bowtie2-raw.fa 06_meme/05_m2-markdup-bowtie2-tmatic.fa
+all:	06_meme/05_m2-rs-bowtie2-raw 06_meme/05_m2-rs-bowtie2-tmatic 06_meme/05_m2-rs-markdup-bowtie2-tmatic
+
+06_meme/05_m2-bowtie2-raw.fa:	05_m2-bowtie2-raw
+	DIR="05_m2-bowtie2-raw" ; \
+	for file in `find $$DIR -type f -name '*_peaks.bed'`; do \
+		cat $$file >> 06_meme/$$DIR.tmp ; \
+	done && \
+	bedtools sort -i 06_meme/$$DIR.tmp > 06_meme/$$DIR.tmp1 && \
+	mergeBed -i  06_meme/$$DIR.tmp1 > 06_meme/$$DIR.bed && \
+	rm 06_meme/$$DIR.tmp* && \
+	bedtools getfasta -fi /Volumes/hts_core/Shared/hg19/hg19.fasta -bed 06_meme/$$DIR.bed -fo 06_meme/$$DIR.fa && \
+	qsub -V -cwd -b y -j y -l h_vmem=30G -m e -pe openmpi 8 meme-chip -noecho -oc 06_meme/$$DIR -index-name $$DIR.html -time 300 -db /Volumes/hts_core/Shared/meme_db/JASPAR_CORE_2014_vertebrates.meme -db /Volumes/hts_core/Shared/meme_db/uniprobe_mouse.meme -meme-mod zoops -meme-minw 6 -meme-maxw 30 -meme-nmotifs 3 -dreme-e 0.05 -centrimo-score 5 -centrimo-ethresh 10 06_meme/$$DIR.fa 
+
+06_meme/05_m2-bowtie2-tmatic.fa:	05_m2-bowtie2-tmatic
+	DIR="05_m2-bowtie2-tmatic" ; \
+	for file in `find $$DIR -type f -name '*_peaks.bed'`; do \
+		cat $$file >> 06_meme/$$DIR.tmp ; \
+	done && \
+	bedtools sort -i 06_meme/$$DIR.tmp > 06_meme/$$DIR.tmp1 && \
+	mergeBed -i  06_meme/$$DIR.tmp1 > 06_meme/$$DIR.bed && \
+	rm 06_meme/$$DIR.tmp* && \
+	bedtools getfasta -fi /Volumes/hts_core/Shared/hg19/hg19.fasta -bed 06_meme/$$DIR.bed -fo 06_meme/$$DIR.fa && \
+	qsub -V -cwd -b y -j y -l h_vmem=30G -m e -pe openmpi 8 meme-chip -noecho -oc 06_meme/$$DIR -index-name $$DIR.html -time 300 -db /Volumes/hts_core/Shared/meme_db/JASPAR_CORE_2014_vertebrates.meme -db /Volumes/hts_core/Shared/meme_db/uniprobe_mouse.meme -meme-mod zoops -meme-minw 6 -meme-maxw 30 -meme-nmotifs 3 -dreme-e 0.05 -centrimo-score 5 -centrimo-ethresh 10 06_meme/$$DIR.fa 
+
+06_meme/05_m2-markdup-bowtie2-raw.fa:	05_m2-markdup-bowtie2-raw
+	DIR="05_m2-markdup-bowtie2-raw" ; \
+	for file in `find $$DIR -type f -name '*_peaks.bed'`; do \
+		cat $$file >> 06_meme/$$DIR.tmp ; \
+	done && \
+	bedtools sort -i 06_meme/$$DIR.tmp > 06_meme/$$DIR.tmp1 && \
+	mergeBed -i  06_meme/$$DIR.tmp1 > 06_meme/$$DIR.bed && \
+	rm 06_meme/$$DIR.tmp* && \
+	bedtools getfasta -fi /Volumes/hts_core/Shared/hg19/hg19.fasta -bed 06_meme/$$DIR.bed -fo 06_meme/$$DIR.fa && \
+	qsub -V -cwd -b y -j y -l h_vmem=30G -m e -pe openmpi 8 meme-chip -noecho -oc 06_meme/$$DIR -index-name $$DIR.html -time 300 -db /Volumes/hts_core/Shared/meme_db/JASPAR_CORE_2014_vertebrates.meme -db /Volumes/hts_core/Shared/meme_db/uniprobe_mouse.meme -meme-mod zoops -meme-minw 6 -meme-maxw 30 -meme-nmotifs 3 -dreme-e 0.05 -centrimo-score 5 -centrimo-ethresh 10 06_meme/$$DIR.fa 
+
+06_meme/05_m2-markdup-bowtie2-tmatic.fa:	05_m2-markdup-bowtie2-tmatic
+	DIR="05_m2-markdup-bowtie2-tmatic" ; \
+	for file in `find $$DIR -type f -name '*_peaks.bed'`; do \
+		cat $$file >> 06_meme/$$DIR.tmp ; \
+	done && \
+	bedtools sort -i 06_meme/$$DIR.tmp > 06_meme/$$DIR.tmp1 && \
+	mergeBed -i  06_meme/$$DIR.tmp1 > 06_meme/$$DIR.bed && \
+	rm 06_meme/$$DIR.tmp* && \
+	bedtools getfasta -fi /Volumes/hts_core/Shared/hg19/hg19.fasta -bed 06_meme/$$DIR.bed -fo 06_meme/$$DIR.fa && \
+	qsub -V -cwd -b y -j y -l h_vmem=30G -m e -pe openmpi 8 meme-chip -noecho -oc 06_meme/$$DIR -index-name $$DIR.html -time 300 -db /Volumes/hts_core/Shared/meme_db/JASPAR_CORE_2014_vertebrates.meme -db /Volumes/hts_core/Shared/meme_db/uniprobe_mouse.meme -meme-mod zoops -meme-minw 6 -meme-maxw 30 -meme-nmotifs 3 -dreme-e 0.05 -centrimo-score 5 -centrimo-ethresh 10 06_meme/$$DIR.fa 
+
+
+06_meme/05_m2-rs-bowtie2-raw:	05_m2-rs-bowtie2-raw
+	DIR="05_m2-rs-bowtie2-raw" ; \
+	limits="0.75 0.50 0.25 0.00" ; \
+	for i in $$limits; do \
+		for file in `find $$DIR -type f -name "*$$i_peaks.bed"`; do \
+			cat $$file >> 06_meme/$$DIR$$i.tmp ; \
+		done && \
+		bedtools sort -i 06_meme/$$DIR$$i.tmp > 06_meme/$$DIR$$i.tmp1 && \
+		mergeBed -i  06_meme/$$DIR$$i.tmp1 > 06_meme/$$DIR$$i.bed && \
+		rm 06_meme/$$DIR$$i.tmp* && \
+		bedtools getfasta -fi /Volumes/hts_core/Shared/hg19/hg19.fasta -bed 06_meme/$$DIR$$i.bed -fo 06_meme/$$DIR$$i.fa && \
+		qsub -V -cwd -b y -j y -l h_vmem=30G -m e -pe openmpi 8 meme-chip -noecho -meme-p \$$NSLOTS -oc 06_meme/$$DIR$$i -index-name $$DIR$$i.html -time 300 -db /Volumes/hts_core/Shared/meme_db/JASPAR_CORE_2014_vertebrates.meme -db /Volumes/hts_core/Shared/meme_db/uniprobe_mouse.meme -meme-mod zoops -meme-minw 6 -meme-maxw 30 -meme-nmotifs 3 -dreme-e 0.05 -centrimo-score 5 -centrimo-ethresh 10 06_meme/$$DIR$$i.fa ; \
+	done
+
+06_meme/05_m2-rs-bowtie2-tmatic:	05_m2-rs-bowtie2-tmatic
+	DIR="05_m2-rs-bowtie2-tmatic" ; \
+	limits="0.75 0.50 0.25 0.00" ; \
+	for i in $$limits; do \
+		for file in `find $$DIR -type f -name "*$$i_peaks.bed"`; do \
+			cat $$file >> 06_meme/$$DIR$$i.tmp ; \
+		done && \
+		bedtools sort -i 06_meme/$$DIR$$i.tmp > 06_meme/$$DIR$$i.tmp1 && \
+		mergeBed -i  06_meme/$$DIR$$i.tmp1 > 06_meme/$$DIR$$i.bed && \
+		rm 06_meme/$$DIR$$i.tmp* && \
+		bedtools getfasta -fi /Volumes/hts_core/Shared/hg19/hg19.fasta -bed 06_meme/$$DIR$$i.bed -fo 06_meme/$$DIR$$i.fa && \
+		qsub -V -cwd -b y -j y -l h_vmem=30G -m e -pe openmpi 8 meme-chip -noecho -meme-p \$$NSLOTS -oc 06_meme/$$DIR$$i -index-name $$DIR$$i.html -time 300 -db /Volumes/hts_core/Shared/meme_db/JASPAR_CORE_2014_vertebrates.meme -db /Volumes/hts_core/Shared/meme_db/uniprobe_mouse.meme -meme-mod zoops -meme-minw 6 -meme-maxw 30 -meme-nmotifs 3 -dreme-e 0.05 -centrimo-score 5 -centrimo-ethresh 10 06_meme/$$DIR$$i.fa ; \
+	done
+
+06_meme/05_m2-rs-markdup-bowtie2-tmatic:	05_m2-rs-markdup-bowtie2-tmatic
+	DIR="05_m2-rs-markdup-bowtie2-tmatic" ; \
+	limits="0.75 0.50 0.25 0.00" ; \
+	for i in $$limits; do \
+		for file in `find $$DIR -type f -name "*$$i_peaks.bed"`; do \
+			cat $$file >> 06_meme/$$DIR$$i.tmp ; \
+		done && \
+		bedtools sort -i 06_meme/$$DIR$$i.tmp > 06_meme/$$DIR$$i.tmp1 && \
+		mergeBed -i  06_meme/$$DIR$$i.tmp1 > 06_meme/$$DIR$$i.bed && \
+		rm 06_meme/$$DIR$$i.tmp* && \
+		bedtools getfasta -fi /Volumes/hts_core/Shared/hg19/hg19.fasta -bed 06_meme/$$DIR$$i.bed -fo 06_meme/$$DIR$$i.fa && \
+		qsub -V -cwd -b y -j y -l h_vmem=30G -m e -pe openmpi 8 meme-chip -noecho -meme-p \$$NSLOTS -oc 06_meme/$$DIR$$i -index-name $$DIR$$i.html -time 300 -db /Volumes/hts_core/Shared/meme_db/JASPAR_CORE_2014_vertebrates.meme -db /Volumes/hts_core/Shared/meme_db/uniprobe_mouse.meme -meme-mod zoops -meme-minw 6 -meme-maxw 30 -meme-nmotifs 3 -dreme-e 0.05 -centrimo-score 5 -centrimo-ethresh 10 06_meme/$$DIR$$i.fa ; \
+	done
