@@ -4,8 +4,7 @@
 ##  alignDirectory
 ##  annotationAnalysis
 ##  appendUniquePostfix.py
-##  bedgroomer.py
-Check if the end coordinate in a bed file is at least 1bp larger, and fixes if not. Useful to groom files with SNP's coordinates, as they may contain deletions with equal start and end coordinates. Can be done with awk.
+`bedgroomer.py` - Check if the end coordinate in a bed file is at least 1bp larger, and fixes if not. Useful to groom files with SNP's coordinates, as they may contain deletions with equal start and end coordinates. Can be done with awk.
 ##  bigWigCount
 ##  bigWigDescribe
 ##  categorize.py
@@ -15,8 +14,7 @@ Check if the end coordinate in a bed file is at least 1bp larger, and fixes if n
 ##  exome2.py
 ##  exportSOFT
 ##  extract.sh
-##  extract_BroadHMM.py
-Connects to MySQL database, extracts BroadHMM subgroups into separate files based on 'name' column. Does not work on python3 - MySQL module not supporrted.
+`extract_UCSC.py` - Connects to MySQL database, extracts BroadHMM subgroups into separate files based on 'name' column. Does not work on python3 - MySQL module not supporrted.
 ##  fetchGOMapping
 ##  fetchGeneLoci
 ##  ftp.sh
