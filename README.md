@@ -63,6 +63,9 @@ rmsemi.py
 sam_index.py
 toBED
 toBigWig
+
+`tomatrix.py` - convert .ped and .map PLINK files to a matrix patients x SNPs
+
 transpose
 transpose.py
 transpose2.py
