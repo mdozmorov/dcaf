@@ -23,6 +23,9 @@ extract.sh
 
 fetchGOMapping
 fetchGeneLoci
+
+`find_dupes.sh` - Finds duplicate files and creates a script to remove them
+
 ftp.sh
 ftp_download.py
 generate_random_bed.sh
