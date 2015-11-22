@@ -60,10 +60,19 @@ rdover.py
 
 `repeatSoakerParser.py` - Read in FASTA file and concatenate FASTA sequences interspersed by randomly generated sequences of fixed length.
 
+`remspaces.sh` - remove spaces from file names (renaming)
+
 rfam2bed.py
 rm_missing.py
 rmsemi.py
 sam_index.py
+
+`sqzchromosomes.sh` - filters out non-canonical chromosomes from BED files
+
+`sqzsinglequotes.sh` - remove single quotes from file names (renaming)
+
+`sqzspaces.sh` - remove spaces from file names (renaming)
+
 toBED
 toBigWig
 

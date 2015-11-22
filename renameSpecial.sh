@@ -1,1 +1,0 @@
-for file in *.bed; do mv -v "$file" `echo $file | tr ' ' '_' | tr -d '[{}(),\!]' | tr -d 's/_-_/_/g'`;done
