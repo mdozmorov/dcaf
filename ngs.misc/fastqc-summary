@@ -44,7 +44,7 @@ def process_fastqc(path, detailed=False):
                 for base in table.index[-5:]:
                     row["Sequence Quality - " + base] = table.ix[base, "Mean"]
         elif name == "Sequence Duplication Levels":
-            row["Total Duplicate Percentage"] = float(extra_data["Total Duplicate Percentage"])
+            row["Total Deduplicated Percentage"] = float(extra_data["Total Deduplicated Percentage"])
     return pandas.Series(row)
 
 def main(argv):
