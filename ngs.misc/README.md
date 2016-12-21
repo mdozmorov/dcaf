@@ -40,3 +40,15 @@ submit1.sh
 submit1.stranded.sh
 submit1.unstranded.sh
 trimends
+
+## Getting uniquely mappable regions from Umap
+
+```
+# Download manually: https://www.encodeproject.org/files/GRCh38_EBV.chrom.sizes/@@download/GRCh38_EBV.chrom.sizes.tsv
+wget https://www.pmgenomics.ca/hoffmanlab/proj/bismap/raw/hg38/k36.umap.multitrackmappability.wg.gz
+wigToBigWig -clip k36.umap.multitrackmappability.wg GRCh38_EBV.chrom.sizes.tsv k36.umap.multitrackmappability.bw
+bigWigToBedGraph k36.umap.multitrackmappability.bw k36.umap.multitrackmappability.bedGraph
+awk 'BEGIN {FS=OFS="\t"} {if ($4 >= .75) print $1, $2, $3}' k36.Umap.MultiTrackMappability.bedGraph | bedtools merge > k36.Umap.MultiTrackMappability.filtered.bed
+```
+
+Produces a BED file qith ~19M entries, ~80bp long.
