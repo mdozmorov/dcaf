@@ -1,4 +1,7 @@
 # A collection of miscellaneous scripts
+
+- `ngs.rna-seq` - scripts to run basic RNA-seq analysis up to summarizing gene counts. Uses subread-featureCounts pipeline (http://bioinf.wehi.edu.au/subread-package/)
+
 Will gradually be documented or tossed
 
 alignDirectory

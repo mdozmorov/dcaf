@@ -1,0 +1,71 @@
+#!/usr/bin/env python3
+"""
+Recursively search a directory for FastQC ZIP files, 
+outputting a summary in tab-delimited format.
+""" 
+
+import argparse
+import io
+import os
+import re
+import sys
+import zipfile
+
+import pandas
+
+def process_fastqc(path, detailed=False):
+    archive = zipfile.ZipFile(path)
+    element = [p for p in archive.namelist() if p.endswith("fastqc_data.txt")][0]
+
+    row = {}
+    data = archive.open(element).read().decode("ascii")
+
+    for section in re.findall(">>(.+?)>>END_MODULE", data, re.DOTALL):
+        section = section.strip()
+        lines = section.split("\n")
+        name, score = lines[0].strip().split("\t")
+        if len(lines) > 1:
+            extra_data = dict([line.strip()[1:].split("\t") for line in lines[1:] if line.startswith("#")][:-1])
+            header = [line.strip() for line in lines[1:] if line.startswith("#")][-1]
+            data = io.StringIO(header[1:] + "\n" + "\n".join([line.strip() for line in lines[1:] if not line.startswith("#")]))
+            table = pandas.read_table(data, sep="\t", index_col=0)
+
+        row[name] = score
+
+        if name == "Basic Statistics":
+            row["Filename"] = table.ix["Filename", "Value"]
+            row["Total Sequences"] = table.ix["Total Sequences", "Value"]
+            row["Sequence Length"] = table.ix["Sequence length", "Value"]
+        elif name == "Per base sequence quality":
+            row["Sequence Quality - Global Mean of Median"] = table["Median"].mean()
+            if detailed:
+                for base in table.index[:5]:
+                    row["Sequence Quality - " + base] = table.ix[base, "Mean"]
+                for base in table.index[-5:]:
+                    row["Sequence Quality - " + base] = table.ix[base, "Mean"]
+        elif name == "Sequence Duplication Levels":
+            row["Total Deduplicated Percentage"] = float(extra_data["Total Deduplicated Percentage"])
+    return pandas.Series(row)
+
+def main(argv):
+    parser = argparse.ArgumentParser()
+    parser.add_argument("basedir", nargs="?", 
+                        default=os.getcwd(),
+                        help="The root directory to be searched for FastQC results. If not specified, uses the current directory.")
+    parser.add_argument("-s", "--simple", 
+            action="store_true", 
+            help="Output simple quality information.")
+    opts = parser.parse_args(argv)
+    
+    rows = []
+    for root, dirs, files in os.walk(opts.basedir):
+        for file in files:
+            if file.endswith("fastqc.zip"):
+                path = os.path.join(root, file)
+                rows.append(process_fastqc(path, not opts.simple))
+    df = pandas.DataFrame(rows)
+    df.index = df["Filename"]
+    df.drop("Filename",1).to_csv(sys.stdout, sep="\t")
+
+if __name__ == "__main__":
+    main(sys.argv[1:])
