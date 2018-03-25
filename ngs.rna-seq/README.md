@@ -24,6 +24,7 @@
 - `submit02_tophat.sh` - TopHat run
 - `submit03_fastqc_bam.sh` - FASTQC quality control of aligned BAM files.
 - `submit03_flagstat.sh` - flafstat stats of BAM files
+- `submit03_picard.sh` - Picard tools run
 - `submit03_featureCounts.sh` - summarize gene counts
 
 - `omicsoft.fa` - FASTA sequences of adapters
