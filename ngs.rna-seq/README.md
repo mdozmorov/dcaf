@@ -26,6 +26,7 @@
 - `submit03_flagstat.sh` - flafstat stats of BAM files
 - `submit03_picard.sh` - Picard tools run
 - `submit03_featureCounts.sh` - summarize gene counts
+- `submit03_unmapped.sh` - extract unmapped reads
 
 - `omicsoft.fa` - FASTA sequences of adapters
 - `fastq-summary` - Python script to summarize multiple outputs from FASTQC into one tab-separated text file
