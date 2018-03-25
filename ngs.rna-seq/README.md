@@ -25,9 +25,10 @@
 - `submit03_fastqc_bam.sh` - FASTQC quality control of aligned BAM files.
 - `submit03_flagstat.sh` - flafstat stats of BAM files
 - `submit03_picard.sh` - Picard tools run
-- `submit03_featureCounts.sh` - summarize gene counts
+- `submit03_featureCounts.sh` - summarize gene counts using `featureCounts`
 - `submit03_unmapped.sh` - extract unmapped reads
 - `submit04_cuffnorm.sh` - create expression matrix normalized to library size, last step after cufflinks
+- `submit04_htseq.sh` - summarize gene counts using `htseq-count`
 
 - `omicsoft.fa` - FASTA sequences of adapters
 - `fastq-summary` - Python script to summarize multiple outputs from FASTQC into one tab-separated text file
