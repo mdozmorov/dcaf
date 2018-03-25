@@ -15,6 +15,7 @@
 
 - `submit00_fastqc.sh` - FASTQC quality control.
 - `submit00_RseQC_geneBody_coverage.sh` - sequencing coverage across gene bodies, using `RseQC`
+- `submit01_bowtie-build_hg38ext.sh`, `submit01_bowtie-build.sh` - examples of building Bowtie index
 - `submit01_trimmomatic.sh` - trimms adapters. Adjust for single- or paired-end reads.
 - `submit02_subindex.sh` - creates reference genome index.
 - `submit02_subread.sh` - aligns trimmed FASTQ files to a reference genome. Adjust for single- or paired-end reads.
