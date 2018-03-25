@@ -2,7 +2,7 @@
 
 `subread-align` (http://bioinf.wehi.edu.au/subread/) and `featureCounts` pipeline (http://bioinf.wehi.edu.au/featureCounts/)
 
-## Folder structure
+## Recommended folder structure
 
 - `00_raw` - place gzipped FASTQ files here.
 - `00_fastqc-raw` - FASTQC quality control output. Created by `submit00_fastqc.sh`.
@@ -10,6 +10,12 @@
 - `02_subread-align` - BAM files aligned to the reference genome.
 - `03_sorted` - sorted BAM files.
 - `03_fastqc-bam` - FASTQC of aligned BAM files.
+
+## Files
+
+- `omicsoft.fa` - FASTA sequences of adapters
+- `fastq-summary` - Python script to summarize multiple outputs from FASTQC into one tab-separated text file
+- `trimmomatic-0.33.jar` - make Trimmomatic jar file available from the local folder
 
 ## Scripts
 
@@ -29,8 +35,3 @@
 - `submit03_unmapped.sh` - extract unmapped reads
 - `submit04_cuffnorm.sh` - create expression matrix normalized to library size, last step after cufflinks
 - `submit04_htseq.sh` - summarize gene counts using `htseq-count`
-
-- `omicsoft.fa` - FASTA sequences of adapters
-- `fastq-summary` - Python script to summarize multiple outputs from FASTQC into one tab-separated text file
-- `trimmomatic-0.33.jar` - make Trimmomatic jar file available from the local folder
-
