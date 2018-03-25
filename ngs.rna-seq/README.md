@@ -27,6 +27,7 @@
 - `submit03_picard.sh` - Picard tools run
 - `submit03_featureCounts.sh` - summarize gene counts
 - `submit03_unmapped.sh` - extract unmapped reads
+- `submit04_cuffnorm.sh` - create expression matrix normalized to library size, last step after cufflinks
 
 - `omicsoft.fa` - FASTA sequences of adapters
 - `fastq-summary` - Python script to summarize multiple outputs from FASTQC into one tab-separated text file
