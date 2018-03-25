@@ -21,6 +21,7 @@
 - `submit02_subindex.sh` - creates reference genome index.
 - `submit02_subread.sh` - aligns trimmed FASTQ files to a reference genome. Adjust for single- or paired-end reads.
 - `submit03_samsort.sh` - sorts aligned BAM files.
+- `submit02_tophat.sh` - TopHat run
 - `submit03_fastqc_bam.sh` - FASTQC quality control of aligned BAM files.
 - `submit03_flagstat.sh` - flafstat stats of BAM files
 - `submit03_featureCounts.sh` - summarize gene counts
