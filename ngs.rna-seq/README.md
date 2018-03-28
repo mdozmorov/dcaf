@@ -13,8 +13,9 @@
 
 ## Files
 
-- `omicsoft.fa` - FASTA sequences of adapters
 - `fastq-summary` - Python script to summarize multiple outputs from FASTQC into one tab-separated text file
+- `get_sra_data.sh` - example of SRA data download
+- `omicsoft.fa` - FASTA sequences of adapters
 - `trimmomatic-0.33.jar` - make Trimmomatic jar file available from the local folder
 
 ## Scripts
