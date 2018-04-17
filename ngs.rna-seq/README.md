@@ -35,4 +35,6 @@
 - `submit03_featureCounts.sh` - summarize gene counts using `featureCounts`
 - `submit03_unmapped.sh` - extract unmapped reads
 - `submit04_cuffnorm.sh` - create expression matrix normalized to library size, last step after cufflinks
+- `submit04_DEXSeq_prepare_annotation.sh` - prepare annotations for DEXseq analysis
+- `submit04_DEXSeq_count.sh` - get exon counts using DEXSeq annotation
 - `submit04_htseq.sh` - summarize gene counts using `htseq-count`
