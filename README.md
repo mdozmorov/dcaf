@@ -13,6 +13,9 @@ appendUniquePostfix.py
 bigWigCount
 bigWigDescribe
 categorize.py
+
+`check_phred.sh` - Check whether quality of a FASTQ is PHRED33 or PHRED64 encoded
+
 collapseRows
 
 `convert.py` - Reads 3-column file containing "line #", "Gene(s)", "Ratio"; Genes may be " /// " separated; Splits gene line into a set of genes; Outputs "Gene" - "Ratio" pair. For Affy data
