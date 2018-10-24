@@ -1,22 +1,23 @@
 #!/bin/bash
 #PBS -S /bin/bash
 #PBS -V
-#PBS -l nodes=1:ppn=4
-#PBS -M my@email.adr
-#PBS -N samsort
+#PBS -l nodes=1:ppn=24
+#PBS -M mdozmorov@vcu.edu
+#PBS -N mdozsamsort
 #PBS -j oe
-# PBS -o /path/to/stderr-stdout/output
+# PBS -o /home/glasser/Dissertation/Dozmorov/RNA-seq/cuffdiffout3
 
 cd $PBS_O_WORKDIR
 
-# Input folder
-DIRIN=02_subread-align/
+#FILE=/home/glasser/work.md/genes38_80.gtf
 
-# Output folder
-DIROUT=03_sorted
+mkdir 03_sorted
 
-mkdir -p $DIROUT
 
-for file in `find $DIRIN -type f -name "*.bam" | sort`; do
-        samtools sort $file $DIROUT"/"`basename $file .bam`;
+for file in `find 02_subread-align/ -type f -name "*.bam" | sort`; do
+	/home/mdozmorov/.local/bin/samtools sort -@ 23 -o 03_sorted/$file -O BAM $file;
+done
+
+for file in `find 03_sorted/ -type f -name "*.bam" | sort`; do
+	/home/mdozmorov/.local/bin/samtools index $file;
 done
