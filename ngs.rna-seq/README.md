@@ -1,4 +1,4 @@
-# Scripts for basic RNA-seq data processing and summarization
+# Scripts for genomic data processing and summarization
 
 `subread-align` (http://bioinf.wehi.edu.au/subread/) and `featureCounts` pipeline (http://bioinf.wehi.edu.au/featureCounts/)
 
@@ -27,15 +27,16 @@
 - `submit01_trimmomatic.sh` - trim adapters using `Trimmomatic`. Adjust for single- or paired-end reads.
 - `submit02_star-align.sh` - align FASTQ files using STAR aligner.
 - `submit02_star-index.sh` - create STAR genome index
-- `submit02_subindex.sh` - creates reference genome index.
-- `submit02_subread.sh` - aligns trimmed FASTQ files to a reference genome. Adjust for single- or paired-end reads.
-- `submit03_samsort.sh` - sorts aligned BAM files.
+- `submit02_subindex.sh` - creates subread genome index
+- `submit02_subread.sh` - aligns FASTQ files using subread aligner.
 - `submit02_tophat.sh` - TopHat run
 - `submit03_fastqc_bam.sh` - FASTQC quality control of aligned BAM files.
-- `submit03_picard.sh` - Picard tools run
 - `submit03_featureCounts.sh` - summarize gene counts using `featureCounts`
 - `submit03_flagstat-star.sh` - flagstats for STAR alignment
 - `submit03_flagstat.sh` - flafstat stats for subread alignment
+- `submit03_picard.sh` - Picard tools run
+- `submit03_samsort-star.sh` - sort STAR-aligned BAM files.
+- `submit03_samsort.sh` - sort subread-aligned BAM files.
 - `submit03_unmapped.sh` - extract unmapped reads
 - `submit04_cuffnorm.sh` - create expression matrix normalized to library size, last step after cufflinks
 - `submit04_DEXSeq_prepare_annotation.sh` - prepare annotations for DEXseq analysis
