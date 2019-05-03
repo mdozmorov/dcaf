@@ -43,4 +43,6 @@ The scripts are highly specialized to the cluster environment at VCU, that uses 
 - `submit04_cuffnorm.sh` - create expression matrix normalized to library size, last step after cufflinks
 - `submit04_DEXSeq_prepare_annotation.sh` - prepare annotations for DEXseq analysis
 - `submit04_DEXSeq_count.sh` - get exon counts using DEXSeq annotation
+- `submit04_genrich.sh` - Genrich command example
 - `submit04_htseq.sh` - summarize gene counts using `htseq-count`
+- `submit04_macs2.sh` - MACS2 command example
