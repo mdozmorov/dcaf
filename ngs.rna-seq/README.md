@@ -25,6 +25,8 @@
 - `submit01_bowtie-build_hg38ext.sh`, `submit01_bowtie-build.sh` - examples of building Bowtie index
 - `submit01_cutadapt.sh` - trim adapters using `Cutadapt`. Adjust for single- or paired-end reads.
 - `submit01_trimmomatic.sh` - trim adapters using `Trimmomatic`. Adjust for single- or paired-end reads.
+- `submit02_star-align.sh` - align FASTQ files using STAR aligner.
+- `submit02_star-index.sh` - create STAR genome index
 - `submit02_subindex.sh` - creates reference genome index.
 - `submit02_subread.sh` - aligns trimmed FASTQ files to a reference genome. Adjust for single- or paired-end reads.
 - `submit03_samsort.sh` - sorts aligned BAM files.
