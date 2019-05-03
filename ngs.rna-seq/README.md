@@ -1,5 +1,7 @@
 # Scripts for genomic data processing and summarization
 
+The scripts are highly specialized to the cluster environment at VCU, that uses PBS job submission system. They are not intended to be run as-is, every script must be checked before running. 
+
 `subread-align` (http://bioinf.wehi.edu.au/subread/) and `featureCounts` pipeline (http://bioinf.wehi.edu.au/featureCounts/)
 
 ## Recommended folder structure
